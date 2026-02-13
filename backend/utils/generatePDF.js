@@ -1,31 +1,28 @@
 const puppeteer = require("puppeteer");
 const QRCode = require("qrcode");
-const template = require("../templates/invoiceTemplate");
+const invoiceTemplate = require("../templates/invoiceTemplate");
 
 module.exports = async (data) => {
-  // Generate QR Code
-  const qrCode = await QRCode.toDataURL(
-    `Invoice:${data.invoiceNo}|Amount:${data.total}`
-  );
+  if (!data) throw new Error("No data provided");
 
   const browser = await puppeteer.launch({
-    headless: "new"
+    headless: "new",
   });
 
   const page = await browser.newPage();
-  const html = template(data, qrCode);
+  const qrCode = await QRCode.toDataURL(
+    `Invoice No: ${data.invoiceNo}
+Client: ${data.client}
+Amount: ${data.total}`
+  );
+
+  const html = invoiceTemplate(data, qrCode);
 
   await page.setContent(html, { waitUntil: "networkidle0" });
 
   const pdf = await page.pdf({
     format: "A4",
     printBackground: true,
-    margin: {
-      top: "20mm",
-      bottom: "30mm",
-      left: "15mm",
-      right: "15mm"
-    }
   });
 
   await browser.close();

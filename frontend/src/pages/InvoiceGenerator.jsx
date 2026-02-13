@@ -24,7 +24,7 @@ export default function InvoiceGenerator() {
 
     try {
       const res = await axios.post(
-        "http://localhost:50001/api/pdf/download",
+        "http://localhost:5000/api/pdf/download",
         data,
         { responseType: "blob" }
       );

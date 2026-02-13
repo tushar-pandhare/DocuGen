@@ -44,7 +44,7 @@ export default function ImageGenerator() {
     const formData = new FormData();
     formData.append("image", file);
 
-    const res = await fetch("http://localhost:50001/api/pdf/img", {
+    const res = await fetch("http://localhost:5000/api/pdf/img", {
       method: "POST",
       body: formData,
     });

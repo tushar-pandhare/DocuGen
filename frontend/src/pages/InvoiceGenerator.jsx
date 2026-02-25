@@ -1,16 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Home, Image as ImageIcon } from "lucide-react";
 
 export default function InvoiceGenerator() {
+  const token = localStorage.getItem("token");
   const [client, setClient] = useState("");
   const [invoiceNo, setInvoiceNo] = useState("");
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
   const generatePDF = async () => {
     setLoading(true);
 
@@ -24,13 +29,18 @@ export default function InvoiceGenerator() {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/pdf/download",
+        "http://localhost:5000/api/invoice/download",
         data,
-        { responseType: "blob" }
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       const url = window.URL.createObjectURL(
-        new Blob([res.data], { type: "application/pdf" })
+        new Blob([res.data], { type: "application/pdf" }),
       );
 
       const link = document.createElement("a");
@@ -46,12 +56,9 @@ export default function InvoiceGenerator() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-10">
-
       {/* Top Navigation */}
       <div className="max-w-5xl mx-auto mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">
-          Invoice Generator
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-800">Invoice Generator</h1>
 
         <div className="flex gap-3">
           <button
@@ -74,11 +81,8 @@ export default function InvoiceGenerator() {
 
       {/* Main Card */}
       <div className="max-w-2xl mx-auto bg-white shadow-2xl rounded-2xl p-8">
-
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-800">
-            Create Invoice
-          </h2>
+          <h2 className="text-3xl font-bold text-gray-800">Create Invoice</h2>
           <p className="text-gray-500 mt-2">
             Generate high-quality professional PDFs
           </p>

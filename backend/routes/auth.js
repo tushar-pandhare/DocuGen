@@ -2,9 +2,11 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
-const { useState } = require("react");
+const auth = require("../middleware/authMiddleware");
+
 const router = express.Router();
 
+/* ================= SIGNUP ================= */
 router.post("/signup", async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -15,19 +17,19 @@ router.post("/signup", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({
+    const user = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
     });
 
-    await user.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+/* ================= LOGIN ================= */
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -46,11 +48,20 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ token, user });
+    res.json({ token }); // 🔥 only send token
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+/* ================= GET CURRENT USER ================= */
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
 
 module.exports = router;

@@ -1,4 +1,3 @@
-// import React from "react"
 import {Route,Routes,BrowserRouter} from "react-router-dom"
 import "./index.css"
 import MainPage from "./pages/MainPage"
@@ -6,6 +5,7 @@ import InvoiceGenerator from "./pages/invoiceGenerator"
 import ImageGenerator from "./pages/ImageGenerator"
 import SignupPage from "./pages/SignupPage"
 import LoginPage from "./pages/LoginPage"
+import DriveFiles from "./pages/DriveFiles"
 
 const App = () => {
   return (
@@ -17,6 +17,7 @@ const App = () => {
         <Route path='/pdf-generate' element={<ImageGenerator />} />
         <Route path='/signup' element={<SignupPage />} />
         <Route path='/login' element={<LoginPage />} />
+        <Route path="/drive-files" element={<DriveFiles />} />
     </Routes>
     </BrowserRouter>
     </>

@@ -58,8 +58,9 @@ const express = require("express");
 const router = express.Router();
 const puppeteer = require("puppeteer");
 const upload = require("../utils/multer");
+const auth = require("../middleware/authMiddleware")
 
-router.post("/img", upload.single("image"), async (req, res) => {
+router.post("/img", upload.single("image"), auth,  async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });

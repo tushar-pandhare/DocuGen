@@ -46,9 +46,9 @@ export default function LoginPage() {
         "http://localhost:5000/api/auth/login",
         data
       );
-
+      
       alert("Login Successful!");
-
+      
       console.log(res.data);
 
       // ✅ Store backend response properly

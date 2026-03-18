@@ -39,6 +39,15 @@ export default function InvoiceGenerator() {
         },
       );
 
+      // const res = await axios.post(
+      //   "http://localhost:5000/api/invoice/download",
+      //   data,
+      //   {
+      //     responseType: "blob",
+      //     withCredentials: true, // ✅ important
+      //   },
+      // );
+
       const url = window.URL.createObjectURL(
         new Blob([res.data], { type: "application/pdf" }),
       );

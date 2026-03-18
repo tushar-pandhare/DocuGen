@@ -49,9 +49,27 @@ export default function Dashboard() {
     navigate("/login");
   };
 
-  const handleGoogleConnect = () => {
-    window.location.href = "http://localhost:5000/api/auth/google";
-  };
+
+const handleGoogleConnect = async () => {
+  try {
+    const res = await axios.get(
+      "http://localhost:5000/api/auth/google",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    // Now redirect to Google OAuth URL
+    window.location.href = res.data.url;
+
+  } catch (err) {
+    console.error(err.response?.data);
+    alert("Google connection failed");
+  }
+};
+
 
   if (loading) return <div className="p-10">Loading...</div>;
 

@@ -6,6 +6,9 @@ import ImageGenerator from "./pages/ImageGenerator"
 import SignupPage from "./pages/SignupPage"
 import LoginPage from "./pages/LoginPage"
 import DriveFiles from "./pages/DriveFiles"
+import TextExtractor from "./pages/TextExtractor"
+import FileCompressor from "./pages/FileCompressor"
+import PdfToImage from "./pages/PdfToImg"
 
 const App = () => {
   return (
@@ -18,6 +21,9 @@ const App = () => {
         <Route path='/signup' element={<SignupPage />} />
         <Route path='/login' element={<LoginPage />} />
         <Route path="/drive-files" element={<DriveFiles />} />
+        <Route path="/text-extractor" element={<TextExtractor />} />
+        <Route path="/compress" element={<FileCompressor />} />
+        <Route path="/pdf-to-image" element={<PdfToImage />} />
     </Routes>
     </BrowserRouter>
     </>

@@ -597,7 +597,7 @@ export default function InvoiceGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-slate-100">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header - Same as before */}
         <div className="flex items-center justify-between mb-8">
@@ -620,7 +620,7 @@ export default function InvoiceGenerator() {
             <span className="text-sm font-medium text-indigo-600">Smart Invoice Generator</span>
           </div>
           <h1 className="text-4xl font-bold text-slate-800 mb-3">
-            Invoice <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Generator</span>
+            Invoice <span className="bg-linear-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Generator</span>
           </h1>
           <p className="text-slate-500">Create professional, tax-compliant invoices in seconds</p>
         </div>
@@ -789,7 +789,7 @@ export default function InvoiceGenerator() {
                 <button
                   onClick={generatePDF}
                   disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-lg font-semibold hover:shadow-lg transition flex items-center justify-center gap-2"
+                  className="flex-1 bg-linear-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-lg font-semibold hover:shadow-lg transition flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                   Generate Invoice
@@ -799,7 +799,7 @@ export default function InvoiceGenerator() {
           </div>
           
           {/* Info Section - Beautiful Card */}
-          <div className="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 border border-indigo-100">
+          <div className="bg-linea-to-br from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 border border-indigo-100">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
                 <Sparkles size={20} className="text-indigo-600" />

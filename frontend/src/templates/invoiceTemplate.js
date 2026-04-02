@@ -130,13 +130,35 @@
 // </body>
 // </html>
 // `;
-module.exports = (data, qrCode) => `
+module.exports = (data, qrCode) => {
+  // Ensure data has all required fields with defaults
+  const safeData = {
+    client: data?.client || 'N/A',
+    clientEmail: data?.clientEmail || '',
+    clientPhone: data?.clientPhone || '',
+    company: data?.company || 'DocuGen Inc.',
+    invoiceNo: data?.invoiceNo || '0001',
+    date: data?.date || new Date().toLocaleDateString(),
+    dueDate: data?.dueDate || new Date(Date.now() + 15*24*60*60*1000).toLocaleDateString(),
+    items: data?.items || [],
+    subtotal: data?.subtotal || data?.total || 0,
+    total: data?.total || 0,
+    gst: data?.gst || (data?.total ? data.total * 0.18 : 0)
+  };
+
+  // Helper function for safe number formatting
+  const formatCurrency = (amount) => {
+    if (amount === undefined || amount === null || isNaN(amount)) return '₹0';
+    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  };
+
+  return `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Invoice ${data.invoiceNo}</title>
+<title>Invoice ${safeData.invoiceNo}</title>
 
 <!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
@@ -312,8 +334,7 @@ module.exports = (data, qrCode) => `
 
   .items-table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
+    border-collapse: collapse;
   }
 
   .items-table th {
@@ -451,18 +472,6 @@ module.exports = (data, qrCode) => `
     font-size: 11px;
   }
 
-  /* Watermark */
-  .watermark {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    opacity: 0.05;
-    font-size: 80px;
-    font-weight: 800;
-    pointer-events: none;
-    z-index: 0;
-  }
-
   @media print {
     body {
       background: white;
@@ -472,15 +481,10 @@ module.exports = (data, qrCode) => `
       box-shadow: none;
       border-radius: 0;
     }
-    .watermark {
-      opacity: 0.03;
-    }
   }
 </style>
 </head>
 <body>
-
-<div class="watermark">INVOICE</div>
 
 <div class="invoice-container">
   
@@ -488,7 +492,7 @@ module.exports = (data, qrCode) => `
   <div class="invoice-header">
     <div class="header-top">
       <div class="company-info">
-        <h1>DocuGen</h1>
+        <h1>${safeData.company || 'DocuGen'}</h1>
         <div class="company-tagline">Professional Document Solutions</div>
       </div>
       <div class="invoice-title">
@@ -503,15 +507,15 @@ module.exports = (data, qrCode) => `
     <div class="bill-grid">
       <div class="bill-card">
         <h3>BILL TO</h3>
-        <div class="client-name">${data.client || 'N/A'}</div>
+        <div class="client-name">${safeData.client}</div>
         <div class="client-details">
-          ${data.clientEmail ? `<div>📧 ${data.clientEmail}</div>` : ''}
-          ${data.clientPhone ? `<div>📞 ${data.clientPhone}</div>` : ''}
+          ${safeData.clientEmail ? `<div>📧 ${safeData.clientEmail}</div>` : ''}
+          ${safeData.clientPhone ? `<div>📞 ${safeData.clientPhone}</div>` : ''}
         </div>
       </div>
       <div class="bill-card">
         <h3>FROM</h3>
-        <div class="client-name">${data.company || 'DocuGen Inc.'}</div>
+        <div class="client-name">${safeData.company || 'DocuGen Inc.'}</div>
         <div class="client-details">
           <div>🏢 123 Business Avenue</div>
           <div>📧 support@docugen.com</div>
@@ -523,15 +527,15 @@ module.exports = (data, qrCode) => `
     <div class="invoice-meta">
       <div class="meta-item">
         <div class="meta-label">INVOICE NUMBER</div>
-        <div class="meta-value">#${data.invoiceNo}</div>
+        <div class="meta-value">#${safeData.invoiceNo}</div>
       </div>
       <div class="meta-item">
         <div class="meta-label">INVOICE DATE</div>
-        <div class="meta-value">${data.date || new Date().toLocaleDateString()}</div>
+        <div class="meta-value">${safeData.date}</div>
       </div>
       <div class="meta-item">
         <div class="meta-label">DUE DATE</div>
-        <div class="meta-value">${data.dueDate || new Date(Date.now() + 15*24*60*60*1000).toLocaleDateString()}</div>
+        <div class="meta-value">${safeData.dueDate}</div>
       </div>
     </div>
   </div>
@@ -548,14 +552,18 @@ module.exports = (data, qrCode) => `
         </tr>
       </thead>
       <tbody>
-        ${data.items.map(item => `
+        ${safeData.items && safeData.items.length > 0 ? safeData.items.map(item => `
           <tr>
-            <td class="item-name">${item.name}</td>
-            <td style="text-align: center">${item.qty}</td>
-            <td style="text-align: right">₹${item.price.toLocaleString('en-IN')}</td>
-            <td style="text-align: right; font-weight: 600">₹${(item.qty * item.price).toLocaleString('en-IN')}</td>
+            <td class="item-name">${item.name || 'Service'}</td>
+            <td style="text-align: center">${item.qty || 1}</td>
+            <td style="text-align: right">${formatCurrency(item.price || 0)}</td>
+            <td style="text-align: right; font-weight: 600">${formatCurrency((item.qty || 1) * (item.price || 0))}</td>
           </tr>
-        `).join('')}
+        `).join('') : `
+          <tr>
+            <td colspan="4" style="text-align: center">No items</td>
+          </tr>
+        `}
       </tbody>
     </table>
   </div>
@@ -566,15 +574,15 @@ module.exports = (data, qrCode) => `
       <div class="totals-card">
         <div class="total-row">
           <span class="total-label">Subtotal</span>
-          <span class="total-amount">₹${data.total.toLocaleString('en-IN')}</span>
+          <span class="total-amount">${formatCurrency(safeData.subtotal)}</span>
         </div>
         <div class="total-row">
           <span class="total-label">Tax (GST 18%)</span>
-          <span class="total-amount">₹${(data.total * 0.18).toLocaleString('en-IN')}</span>
+          <span class="total-amount">${formatCurrency(safeData.gst)}</span>
         </div>
         <div class="total-row">
           <span class="total-label grand-total-label">Grand Total</span>
-          <span class="total-amount grand-total-amount">₹${(data.total * 1.18).toLocaleString('en-IN')}</span>
+          <span class="total-amount grand-total-amount">${formatCurrency(safeData.total + safeData.gst)}</span>
         </div>
       </div>
     </div>
@@ -596,11 +604,12 @@ module.exports = (data, qrCode) => `
       </div>
     </div>
     <div class="copyright">
-      © ${new Date().getFullYear()} DocuGen. All rights reserved. | This is a computer generated invoice
+      © ${new Date().getFullYear()} ${safeData.company || 'DocuGen'}. All rights reserved. | This is a computer generated invoice
     </div>
   </div>
 </div>
 
 </body>
 </html>
-`;
+  `;
+};

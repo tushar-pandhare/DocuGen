@@ -65,6 +65,7 @@ routeLoader.lazyLoad("/api/invoice", "./routes/invoiceRoute");
 routeLoader.lazyLoad("/api/drive", "./routes/driveRoutes");
 routeLoader.lazyLoad("/api/compress", "./routes/compressRoutes");
 routeLoader.lazyLoad("/api/pdf-to-image", "./routes/pdfToImageRouteMain");
+routeLoader.lazyLoad("/api/","./routes/templateRoutes");
 
 // ==================== HEALTH CHECK ====================
 app.get("/health", (req, res) => {

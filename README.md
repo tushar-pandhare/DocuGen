@@ -4,7 +4,7 @@
 
 ## 🎯 What Problem Does It Solve?
 
-Companies juggle 4+ tools (PDF converters + OCR software + template builders + Google Drive). DocuGen combines all in one platform.
+Companies juggle 5+ tools (PDF converters + OCR software + template builders + Google Drive). DocuGen combines all in one platform.
 
 ## ✅ Key Problems Solved
 

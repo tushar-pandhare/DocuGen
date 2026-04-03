@@ -59,4 +59,7 @@ git clone https://github.com/yourusername/docugen.git
 cd backend && npm install && npm run dev
 cd frontend && npm install && npm run dev
 ```  
-**👨‍💻 Author:** Tushar Pandhare - [LinkedIn](https://linkedin.com/in/tusharpandhare)
+**👨‍💻 Author:** Tushar Pandhare 
+<a href="https://www.linkedin.com/in/tusharpandhare/">
+    <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white"/>
+</a>

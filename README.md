@@ -55,7 +55,7 @@ Companies juggle 5+ tools (PDF converters + OCR software + template builders + G
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/yourusername/docugen.git
+git clone https://github.com/tushar-pandhare/docugen.git
 cd backend && npm install && npm run dev
 cd frontend && npm install && npm run dev
 ```  

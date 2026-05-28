@@ -105,7 +105,7 @@ router.post('/templates/:id/generate', auth, async (req, res) => {
     const { data } = req.body;
     const uploadToDrive = req.body.uploadToDrive || false;
     
-    console.log('Generating document for template:', template.name);
+    // console.log('Generating document for template:', template.name);
     
     // Generate PDF using pdfkit
     const pdf = await generatePDFFromTemplate(template, data);
@@ -114,7 +114,7 @@ router.post('/templates/:id/generate', auth, async (req, res) => {
       throw new Error('PDF generation returned empty data');
     }
     
-    console.log('PDF generated successfully, size:', pdf.length, 'bytes');
+    // console.log('PDF generated successfully, size:', pdf.length, 'bytes');
     
     let driveFileId = null;
     
@@ -173,7 +173,7 @@ router.post('/templates/:id/generate', auth, async (req, res) => {
           });
           
           driveFileId = fileResponse.data.id;
-          console.log('PDF uploaded to Google Drive');
+          // console.log('PDF uploaded to Google Drive');
         }
       } catch (driveErr) {
         console.error('Drive upload failed:', driveErr.message);

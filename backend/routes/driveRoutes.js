@@ -181,7 +181,7 @@ router.put("/rename-file/:fileId", auth, async (req, res) => {
       fields: 'id, name, mimeType, webViewLink'
     });
     
-    console.log(`File renamed: ${response.data.name}`);
+    alert(`File renamed: ${response.data.name}`);
     
     res.json({ 
       success: true, 

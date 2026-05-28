@@ -22,7 +22,7 @@ router.post("/img", auth, upload.array("images"), async (req, res) => {
     // Get uploadToDrive preference from request body
     const uploadToDrive = req.body.uploadToDrive === 'true' || req.body.uploadToDrive === true;
     
-    console.log('Upload to Drive preference:', uploadToDrive);
+    // console.log('Upload to Drive preference:', uploadToDrive);
 
     const user = await User.findById(req.user.id);
     
@@ -44,7 +44,7 @@ router.post("/img", auth, upload.array("images"), async (req, res) => {
           folderId = await createDocuGenFolder(oauthClient);
           const fileName = `MultiImagePDF_${Date.now()}.pdf`;
           driveFile = await uploadInvoice(oauthClient, folderId, pdfBuffer, fileName);
-          console.log('PDF uploaded to Google Drive');
+          alert('PDF uploaded to Google Drive');
         } catch (driveErr) {
           console.error("Drive upload failed:", driveErr);
           // Don't fail the request if Drive upload fails

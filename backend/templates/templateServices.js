@@ -5,7 +5,7 @@ const QRCode = require('qrcode');
 async function generatePDFFromTemplate(template, data) {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log('Generating PDF for template:', template.name);
+      // console.log('Generating PDF for template:', template.name);
       
       const doc = new PDFDocument({ 
         margin: 50, 
@@ -17,7 +17,7 @@ async function generatePDFFromTemplate(template, data) {
       doc.on('data', chunk => chunks.push(chunk));
       doc.on('end', () => {
         const pdfBuffer = Buffer.concat(chunks);
-        console.log('PDF generated, size:', pdfBuffer.length, 'bytes');
+        // console.log('PDF generated, size:', pdfBuffer.length, 'bytes');
         resolve(pdfBuffer);
       });
       doc.on('error', reject);

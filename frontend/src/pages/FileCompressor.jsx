@@ -512,7 +512,7 @@ export default function FileCompressor() {
 
         setIsGoogleConnected(!!connected);
       } catch (err) {
-        console.log(err);
+        // console.log(err);
         setIsGoogleConnected(false);
       } finally {
         setCheckingDrive(false);
@@ -537,7 +537,7 @@ export default function FileCompressor() {
         window.location.href = res.data.url;
       }
     } catch (err) {
-      console.log(err);
+      // console.log(err);
 
       if (err.response?.status === 401) {
         alert("Session expired. Please login again.");
@@ -655,7 +655,7 @@ export default function FileCompressor() {
         );
       }
     } catch (err) {
-      console.log(err);
+      // console.log(err);
 
       alert(
         err.response?.data?.message ||

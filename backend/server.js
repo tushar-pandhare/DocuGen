@@ -43,7 +43,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // Request logging middleware (lightweight)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    // console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
   });
 }
@@ -105,9 +105,9 @@ const server = app.listen(PORT, () => {
 
 // ==================== GRACEFUL SHUTDOWN ====================
 const shutdown = async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+  // console.log('\n🛑 Shutting down gracefully...');
   server.close(() => {
-    console.log('✅ Server closed');
+    // console.log('✅ Server closed');
     process.exit(0);
   });
   

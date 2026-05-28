@@ -526,7 +526,7 @@ router.put("/rename-file/:fileId", auth, async (req, res) => {
 // In invoiceRoute.js, update the download endpoint to handle uploadToDrive
 router.post("/download", auth, async (req, res) => {
   try {
-    console.log('Received invoice request:', req.body);
+    // ('Received invoice request:', req.body);
     
     const userId = req.user.id;
     const uploadToDrive = req.body.uploadToDrive || false; // Get upload preference
@@ -605,12 +605,12 @@ router.post("/download", auth, async (req, res) => {
           });
           
           driveUploaded = true;
-          console.log('Invoice uploaded to Drive');
+          alert('Invoice uploaded to Drive');
         } else {
           console.log('Drive not connected, skipping upload');
         }
       } catch (driveErr) {
-        console.error('Drive upload failed:', driveErr.message);
+        console.log('Drive upload failed:', driveErr.message);
         // Don't fail the request if Drive upload fails
       }
     }
@@ -637,7 +637,7 @@ router.post("/download", auth, async (req, res) => {
 // Preview endpoint - FIXED
 router.post("/preview", auth, async (req, res) => {
   try {
-    console.log('Preview request received');
+    // console.log('Preview request received');
     
     const subtotal = Number(req.body.total) || 0;
     const gst = subtotal * 0.18;

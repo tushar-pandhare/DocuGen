@@ -52,15 +52,15 @@ export default function InvoiceGenerator() {
   const checkDriveConnection = async () => {
     try {
       setCheckingConnection(true);
-      console.log("Checking Drive connection with token:", token ? "Token exists" : "No token");
+      // console.log("Checking Drive connection with token:", token ? "Token exists" : "No token");
       
-      const response = await axios.get("http://localhost:5000/api/drive/status", {
+      const response = await axios.get("http://localhost:5000/api/auth/status", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       
-      console.log("Drive connection response:", response.data);
+      // console.log("Drive connection response:", response.data);
       setDriveConnected(response.data.connected);
     } catch (error) {
       console.error("Error checking Drive connection:", error);
@@ -80,7 +80,7 @@ export default function InvoiceGenerator() {
         },
       });
       
-      console.log("Auth URL response:", response.data);
+      // console.log("Auth URL response:", response.data);
       
       // Open Google OAuth window
       const authUrl = response.data.url;

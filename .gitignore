@@ -1,0 +1,8 @@
+﻿node_modules/
+.env
+dist/
+backend/uploads/
+backend/output/
+backend/vector_store/
+backend/temp.pdf
+backend/eng.traineddata

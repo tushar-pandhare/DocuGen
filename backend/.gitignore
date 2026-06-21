@@ -1,0 +1,7 @@
+﻿node_modules/
+.env
+uploads/
+output/
+vector_store/
+temp.pdf
+eng.traineddata

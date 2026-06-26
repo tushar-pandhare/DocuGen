@@ -1,7 +1,14 @@
 import { useState } from "react";
-import api from '../services/api';
+import api from "../services/api";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, LogIn, Sparkles, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, FileText, ArrowRight } from "lucide-react";
+
+const FEATURES = [
+  { icon: "📄", label: "PDF Generation" },
+  { icon: "🔍", label: "Text Extraction" },
+  { icon: "🗜️", label: "File Compression" },
+  { icon: "🤖", label: "AI Assistant" },
+];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -11,7 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const validate = () => {
-    let newErrors = {};
+    const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email) newErrors.email = "Email is required";
     else if (!emailRegex.test(formData.email)) newErrors.email = "Invalid email format";
@@ -23,15 +30,11 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-
     setLoading(true);
     try {
       const res = await api.post("/auth/login", formData);
-
       localStorage.setItem("token", res.data.token);
-      // Backend only returns { token } — store null safely if user key absent
       localStorage.setItem("user", JSON.stringify(res.data.user || null));
-
       navigate("/");
     } catch (err) {
       alert(err.response?.data?.message || "Invalid credentials");
@@ -41,82 +44,248 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-indigo-600 via-purple-600 to-pink-500 p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="bg-linear-to-r from-indigo-600 to-purple-600 px-8 py-6 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-3">
-            <Sparkles className="text-white" size={28} />
+    <div className="min-h-screen flex" style={{ fontFamily: "'Inter', sans-serif", background: "#0F1117" }}>
+
+      {/* ── Left panel ── */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[52%] p-12"
+        style={{
+          background: "linear-gradient(145deg, #0D1B2A 0%, #112240 60%, #0A1628 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div
+            className="flex items-center justify-center w-10 h-10 rounded-xl"
+            style={{ background: "linear-gradient(135deg, #3B82F6, #6366F1)" }}
+          >
+            <FileText size={20} color="white" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Welcome Back</h2>
-          <p className="text-indigo-100 text-sm mt-1">Sign in to your account</p>
+          <span className="text-white font-semibold text-lg tracking-tight">DocuGen</span>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="email"
-                name="email"
-                placeholder="you@example.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+        {/* Center content */}
+        <div>
+          <div
+            className="inline-block text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full mb-6"
+            style={{ background: "rgba(59,130,246,0.15)", color: "#60A5FA", border: "1px solid rgba(59,130,246,0.3)" }}
+          >
+            Document Intelligence Platform
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
+          <h1
+            className="font-bold leading-tight mb-4"
+            style={{ fontSize: "2.6rem", color: "#F0F4FF", letterSpacing: "-0.02em" }}
+          >
+            Your documents,
+            <br />
+            <span style={{ color: "#3B82F6" }}>intelligently</span> handled.
+          </h1>
+
+          <p className="text-base leading-relaxed mb-10" style={{ color: "#8B9CB6", maxWidth: "420px" }}>
+            Generate, extract, compress and analyse documents with AI — all in one secure workspace.
+          </p>
+
+          {/* Feature pills */}
+          <div className="flex flex-wrap gap-3">
+            {FEATURES.map((f) => (
+              <div
+                key={f.label}
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "#CBD5E1",
+                }}
               >
-                {showPassword ? <EyeOff size={18} className="text-slate-400" /> : <Eye size={18} className="text-slate-400" />}
-              </button>
+                <span>{f.icon}</span>
+                <span>{f.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom quote */}
+        <div
+          className="rounded-2xl p-5"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <p className="text-sm italic mb-3" style={{ color: "#8B9CB6" }}>
+            "DocuGen cut our invoice processing time by 70%. The AI extraction is remarkably accurate."
+          </p>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: "linear-gradient(135deg, #3B82F6, #6366F1)", color: "white" }}
+            >
+              R
             </div>
-            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+            <div>
+              <div className="text-sm font-medium" style={{ color: "#CBD5E1" }}>Rohan Mehta</div>
+              <div className="text-xs" style={{ color: "#4B6080" }}>Operations Lead, FinServe</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right panel — form ── */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-md">
+
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2 mb-8 lg:hidden">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #3B82F6, #6366F1)" }}
+            >
+              <FileText size={16} color="white" />
+            </div>
+            <span className="font-semibold text-white">DocuGen</span>
+          </div>
+
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-1" style={{ color: "#F0F4FF", letterSpacing: "-0.01em" }}>
+              Sign in
+            </h2>
+            <p className="text-sm" style={{ color: "#5A7090" }}>
+              Access your document workspace
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#5A7090" }}>
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2"
+                  style={{ color: "#3B5070" }}
+                />
+                <input
+                  type="email"
+                  placeholder="you@company.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.04)",
+                    border: errors.email ? "1px solid #EF4444" : "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    padding: "14px 14px 14px 44px",
+                    color: "#F0F4FF",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                  }}
+                  onFocus={(e) => { if (!errors.email) e.target.style.borderColor = "#3B82F6"; }}
+                  onBlur={(e) => { if (!errors.email) e.target.style.borderColor = "rgba(255,255,255,0.1)"; }}
+                />
+              </div>
+              {errors.email && <p className="text-xs mt-1.5" style={{ color: "#EF4444" }}>{errors.email}</p>}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#5A7090" }}>
+                Password
+              </label>
+              <div className="relative">
+                <Lock
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2"
+                  style={{ color: "#3B5070" }}
+                />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  style={{
+                    width: "100%",
+                    background: "rgba(255,255,255,0.04)",
+                    border: errors.password ? "1px solid #EF4444" : "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    padding: "14px 44px 14px 44px",
+                    color: "#F0F4FF",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "border-color 0.2s",
+                  }}
+                  onFocus={(e) => { if (!errors.password) e.target.style.borderColor = "#3B82F6"; }}
+                  onBlur={(e) => { if (!errors.password) e.target.style.borderColor = "rgba(255,255,255,0.1)"; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2"
+                  style={{ color: "#3B5070", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {errors.password && <p className="text-xs mt-1.5" style={{ color: "#EF4444" }}>{errors.password}</p>}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 font-semibold text-sm transition-all"
+              style={{
+                background: loading ? "rgba(59,130,246,0.5)" : "linear-gradient(135deg, #3B82F6, #6366F1)",
+                color: "white",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "none",
+                cursor: loading ? "not-allowed" : "pointer",
+                marginTop: "8px",
+                boxShadow: loading ? "none" : "0 4px 24px rgba(59,130,246,0.35)",
+              }}
+            >
+              {loading ? (
+                <div
+                  className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin"
+                />
+              ) : (
+                <>
+                  Sign in to workspace
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <span className="text-xs" style={{ color: "#3B5070" }}>New to DocuGen?</span>
+            <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.07)" }} />
           </div>
 
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-linear-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50"
+            type="button"
+            onClick={() => navigate("/signup")}
+            className="w-full text-sm font-semibold transition-all"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#60A5FA",
+              padding: "13px",
+              borderRadius: "12px",
+              cursor: "pointer",
+            }}
           >
-            {loading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-            ) : (
-              <>
-                <LogIn size={18} />
-                Sign In
-              </>
-            )}
+            Create a free account →
           </button>
 
-          <p className="text-center text-sm text-slate-500 mt-4">
-            Don't have an account?{" "}
-            <button
-              type="button"
-              onClick={() => navigate("/signup")}
-              className="text-indigo-600 font-semibold hover:underline"
-            >
-              Sign Up
-            </button>
+          <p className="text-center text-xs mt-6" style={{ color: "#2D4060" }}>
+            Your documents are encrypted and stored securely.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );

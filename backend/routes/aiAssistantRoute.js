@@ -3,10 +3,16 @@
 // TRUE RAG PIPELINE:
 //   1. Extract text from PDF / DOCX / TXT
 //   2. Chunk text (800 words, 150 word overlap)
-//   3. Embed each chunk → Google embedding-001 (free, 768-dim vectors)
+//   3. Embed each chunk → Google gemini-embedding-001 (768-dim vectors)
 //   4. Store vectors → Vectra LocalIndex (file-backed, no server needed)
 //   5. On question: embed question → cosine similarity search → top-5 chunks
-//   6. Augment prompt with retrieved chunks → Gemini 1.5 Flash → answer
+//   6. Augment prompt with retrieved chunks → Gemini 2.5 Flash → answer
+//
+// NOTE: Google retired the older `embedding-001` and `gemini-1.5-flash`
+// model IDs — both now return HTTP 404. This route uses the current
+// model IDs (`gemini-embedding-001` and `gemini-2.5-flash`). If Google
+// retires these too in the future, check https://ai.google.dev/gemini-api/docs/deprecations
+// for the current replacement and update GEMINI_EMBED_URL / GEMINI_CHAT_URL below.
 
 const express = require("express");
 const router = express.Router();
@@ -20,9 +26,12 @@ const { LocalIndex } = require("vectra");
 // ─── Config ───────────────────────────────────────────────────────────────────
 const VECTOR_DB_DIR = path.join(__dirname, "../vector_store");
 const GEMINI_EMBED_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
 const GEMINI_CHAT_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+// gemini-embedding-001 outputs 3072-dim vectors by default; we truncate to
+// 768 to keep the vector store small and consistent across chunks/questions.
+const EMBED_DIMENSIONS = 768;
 
 // Ensure vector store directory exists
 if (!fs.existsSync(VECTOR_DB_DIR)) fs.mkdirSync(VECTOR_DB_DIR, { recursive: true });
@@ -80,7 +89,7 @@ function chunkText(text, chunkSize = 800, overlap = 150) {
   return chunks;
 }
 
-// ─── Google embedding-001: embed a single string → 768-dim float array ────────
+// ─── Google gemini-embedding-001: embed a single string → 768-dim float array ─
 async function embedText(text) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set in .env");
@@ -88,8 +97,9 @@ async function embedText(text) {
   const response = await axios.post(
     `${GEMINI_EMBED_URL}?key=${apiKey}`,
     {
-      model: "models/embedding-001",
+      model: "models/gemini-embedding-001",
       content: { parts: [{ text }] },
+      embedContentConfig: { outputDimensionality: EMBED_DIMENSIONS },
     },
     { headers: { "Content-Type": "application/json" }, timeout: 15000 }
   );
@@ -117,7 +127,7 @@ function getUserIndex(userId) {
   return new LocalIndex(indexPath);
 }
 
-// ─── Gemini 1.5 Flash: generate answer ───────────────────────────────────────
+// ─── Gemini 2.5 Flash: generate answer ───────────────────────────────────────
 async function callGemini(prompt) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set in .env");

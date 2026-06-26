@@ -1,10 +1,10 @@
 // frontend/src/pages/AiAssistant.jsx
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-import SidebarLayout from "./SidebarLayout";
 import {
   Upload, Send, Trash2, FileText, Bot, User,
-  Loader2, AlertCircle, CheckCircle2, X, ChevronDown,
+  Loader2, AlertCircle, CheckCircle2, X, ChevronDown, ArrowLeft,
 } from "lucide-react";
 
 // ─── Small Components ─────────────────────────────────────────────────────────
@@ -210,22 +210,32 @@ export default function AiAssistant() {
     if (file) handleFileUpload(file);
   }
 
+  const navigate = useNavigate();
+
   return (
-    <SidebarLayout>
-      <div className="flex flex-col h-full max-h-screen bg-slate-50">
-        {/* ── Header ── */}
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+    <div className="flex flex-col h-screen bg-slate-50">
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            title="Back to dashboard"
+          >
+            <ArrowLeft size={18} />
+          </button>
           <div>
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               <Bot className="text-indigo-600" size={22} />
               AI Document Assistant
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              Upload a document and ask questions — powered by Gemini 1.5 Flash
+              Upload a document and ask questions — powered by Gemini 2.5 Flash
             </p>
           </div>
-          <StatusBadge session={session} />
         </div>
+        <StatusBadge session={session} />
+      </div>
 
         {/* ── Upload Zone ── */}
         <div className="px-6 pt-4 pb-2 flex-shrink-0">
@@ -369,10 +379,9 @@ export default function AiAssistant() {
             </button>
           </div>
           <p className="text-xs text-slate-400 mt-2 text-center">
-            Answers are based only on your uploaded document · Powered by Gemini 1.5 Flash (free)
+            Answers are based only on your uploaded document · Powered by Gemini 2.5 Flash (free)
           </p>
         </div>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 }

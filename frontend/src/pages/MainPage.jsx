@@ -1094,7 +1094,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* ─+─ Body ─+─ */}
       <div style={{ maxWidth:1280, margin:"0 auto", padding:"28px 24px" }}>
         <Routes>
           <Route path="/" element={<DashboardContent />} />
@@ -1103,4 +1103,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-} 
+}  

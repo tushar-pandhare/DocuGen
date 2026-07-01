@@ -1,79 +1,79 @@
 # DocuGen
 
-DocuGen is an AI-powered document and PDF generation suite built with the MERN stack. It allows users to generate invoices, convert images to PDFs, extract text via OCR, manage document templates, and interact with multiple AI providers — all from a single platform.
-
-The project is designed to demonstrate concepts related to:
-
-- Full-Stack Web Development (MERN)
-- REST API Design & JWT Authentication
-- Asynchronous Job Processing (Bull + Redis)
-- AI API Integration (Multi-Provider)
-- Google OAuth2 & Drive API
-- Document Generation & File Processing
-- Security Best Practices
+DocuGen is a MERN-stack document and PDF utility suite. It lets users generate invoices, convert between images and PDFs, extract text via OCR, compress files, build reusable document templates, manage Google Drive files, and chat with uploaded documents through a Gemini-powered RAG assistant.
 
 ## Features
 
-- Smart invoice generator with GST calculation and PDF export
-- Image to PDF conversion (batch support)
-- PDF to image extraction
-- OCR text extraction from images and scanned PDFs
-- File compression for images and PDFs
-- Document template builder with custom fields and HTML layouts
-- Template library with sharing support
-- Google Drive integration — browse, rename, delete files
-- Multi-provider AI assistant (Claude, GPT, Gemini, Llama 3)
-- AI-powered template generation, document summarization, and OCR correction
-- Async job queue with real-time progress tracking
-- Secure file upload with MIME-type validation and size limits
+- JWT-based signup / login
+- Smart invoice generator with GST calculation, PDF preview, and download
+- Image → PDF conversion (batch)
+- PDF → image (JPEG) conversion
+- OCR text extraction (Tesseract.js)
+- Image and PDF compression
+- Custom document template builder (fields, layout, styling) with a template library and sharing
+- Google Drive integration — list, upload, rename, delete files
+- AI document assistant — upload a PDF/DOCX/TXT, it's chunked and embedded, then answered against via Gemini (retrieval-augmented generation)
 
 ## Tech Stack
 
 **Backend**
-- Node.js, Express.js
+- Node.js, Express 4
 - MongoDB, Mongoose
-- Bull + Redis (job queue)
-- PDFKit, Puppeteer (PDF generation)
-- Tesseract.js, pdf-poppler (OCR)
-- Multer (file uploads)
-- JWT, bcryptjs (authentication)
-- Helmet, express-rate-limit (security)
-- googleapis (Google Drive & OAuth2)
+- JWT (`jsonwebtoken`) + `bcryptjs` for auth
+- Multer for uploads
+- PDFKit, `pdf-lib`, Puppeteer, `pdf-poppler`, `pdf2pic` for PDF generation/conversion
+- Tesseract.js for OCR
+- Sharp for image processing
+- `googleapis` for Google OAuth2 + Drive
+- Cloudinary (media storage)
+- `vectra` for the local vector store (RAG embeddings)
+- Helmet, `express-rate-limit`, `express-validator` (installed; not yet wired into any routes — see Known Issues)
 
 **Frontend**
-- React 19, Vite
-- Tailwind CSS
+- React 19, Vite 7
 - React Router v7
 - Axios
+- lucide-react (icons)
+- Tailwind CSS (installed; most of the UI currently uses inline styles rather than Tailwind classes)
 
 ## Project Structure
 
 ```text
 docugen/
-│
 ├── backend/
 │   ├── controller/
+│   │   └── ocrController.js
 │   ├── middleware/
-│   │   ├── authMiddleware.js
-│   │   ├── rateLimiter.js
-│   │   ├── validateInput.js
-│   │   └── fileFilter.js
+│   │   └── authMiddleware.js        # JWT verification
 │   ├── models/
-│   ├── queues/
-│   ├── workers/
-│   │   ├── invoiceWorker.js
-│   │   ├── imagePdfWorker.js
-│   │   └── ocrWorker.js
+│   │   ├── user.js
+│   │   ├── Template.js
+│   │   ├── GeneratedDocument.js
+│   │   ├── InvoiceSchema.js
+│   │   └── Document.js
 │   ├── routes/
-│   ├── utils/
+│   │   ├── auth.js                  # signup / login / me
+│   │   ├── googleAuth.js            # Google OAuth connect + callback
+│   │   ├── invoiceRoute.js
+│   │   ├── pdfRoutes.js             # images -> PDF
+│   │   ├── pdfToImageRouteMain.js   # PDF -> images
+│   │   ├── ocrRoute.js
+│   │   ├── compressRoutes.js
+│   │   ├── driveRoutes.js
+│   │   ├── templateRoutes.js
+│   │   └── aiAssistantRoute.js      # RAG assistant (Gemini)
+│   ├── templates/                   # server-side HTML/PDF templates
+│   ├── utils/                       # cloudinary, PDF gen, Google Drive client, multer, route loader
+│   ├── vector_store/                # local embeddings cache (gitignored)
 │   └── server.js
 │
 └── frontend/
     └── src/
-        ├── components/
-        ├── pages/
-        ├── services/
-        └── App.jsx
+        ├── Context/ToastContext.jsx
+        ├── pages/                   # one file per route/feature
+        ├── services/api.js          # axios instance, injects JWT from localStorage
+        ├── templates/                # client-side invoice template
+        └── App.jsx                  # top-level router
 ```
 
 ## Getting Started
@@ -92,67 +92,68 @@ cd backend && npm install
 cd ../frontend && npm install
 ```
 
-Set up environment variables:
+Set up backend environment variables:
 
 ```bash
 cd backend
 cp .env.example .env
-# Fill in your values (MongoDB URI, JWT secret, Google OAuth credentials, Redis URL)
 ```
 
-```bash
-cd frontend
-cp .env.example .env
-# Set VITE_API_URL=http://localhost:5000
+Fill in `.env`:
+
+```
+PORT=5000
+NODE_ENV=development
+MONGO_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/DocuGen?retryWrites=true&w=majority
+JWT_SECRET=<generate with: openssl rand -hex 32>
+JWT_EXPIRE=1d
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:5000/api/auth/google/callback
+FRONTEND_URL=http://localhost:5173
+GEMINI_API_KEY=your_gemini_api_key
+MAX_FILE_SIZE=10485760
+UPLOAD_DIR=uploads/
 ```
 
-Start Redis (required for job queue):
+Set up frontend environment variables (`frontend/.env`):
 
-```bash
-docker run -d -p 6379:6379 redis:alpine
+```
+VITE_API_URL=http://localhost:5000/api
 ```
 
-Run the application:
+Run both apps in development:
 
 ```bash
-# Terminal 1 — API server
+# backend
 cd backend && npm run dev
 
-# Terminal 2 — Background workers
-cd backend && npm run workers
-
-# Terminal 3 — Frontend
+# frontend (separate terminal)
 cd frontend && npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173)
+Backend runs on `http://localhost:5000`, frontend on `http://localhost:5173`.
 
-## Environment Variables
+## API Overview
 
-| Variable | Description |
-|---|---|
-| `MONGO_URI` | MongoDB connection string |
-| `JWT_SECRET` | Random string, minimum 64 characters |
-| `GOOGLE_CLIENT_ID` | From Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console |
-| `GOOGLE_REDIRECT_URI` | OAuth callback URL |
-| `FRONTEND_URL` | Frontend URL (used for CORS) |
-| `REDIS_URL` | Redis connection string |
-| `ANTHROPIC_API_KEY` | Optional — server-side fallback AI key |
+| Prefix | Routes file | Notes |
+|---|---|---|
+| `/api/auth` | `auth.js`, `googleAuth.js` | signup, login, me, Google OAuth |
+| `/api/invoice` | `invoiceRoute.js` | generate, preview, download, history |
+| `/api/pdf` | `pdfRoutes.js` | images → PDF |
+| `/api/pdf-to-image` | `pdfToImageRouteMain.js` | PDF → images |
+| `/api/ocr` | `ocrRoute.js` | text extraction |
+| `/api/compress` | `compressRoutes.js` | image/PDF compression |
+| `/api/drive` | `driveRoutes.js` | Drive file management |
+| `/api` | `templateRoutes.js` | template CRUD, sharing, generation |
+| `/api/ai` | `aiAssistantRoute.js` | RAG upload/ask/status/clear |
+| `/health` | `server.js` | health check |
 
-## How It Works
+All routes except `/api/auth/signup`, `/api/auth/login`, and `/health` require a `Bearer <token>` header.
 
-1. User submits a request (invoice, PDF conversion, OCR)
-2. API validates the request and enqueues a background job via Bull
-3. A worker picks up the job, processes it, and updates progress in Redis
-4. Frontend polls the job status endpoint every 1.5 seconds and displays a progress bar
-5. When complete, the file is streamed to the browser for download
+## Deployment
 
-For AI features, users provide their own API key (Claude, GPT, Gemini, or Groq). The key is sent via request header and is never stored on the server.
+- **Frontend** → Vercel (static Vite build)
+- **Backend** → Railway / Render (Puppeteer and local file writes mean it cannot run on Vercel's serverless functions)
 
-## 📸 Some Screenshots
-
-| Dashboard | Invoice Template | Invoice Result | Text Extractor |
-|-----------|-----------------|----------------|----------------|
-| <img width="200" src="https://github.com/user-attachments/assets/185054f7-a138-4382-badb-7ce84f14ad50" /> | <img width="200" src="https://github.com/user-attachments/assets/e569cc79-e3f6-4ba1-a933-d822f5576fe8" /> | <img width="150" src="https://github.com/user-attachments/assets/b45ae116-74e3-4184-931f-b16703f22001" /> | <img width="200" src="https://github.com/user-attachments/assets/b7ecbaff-9f2b-443e-8199-ab2f1990bd06" /> |
-
+Set `VITE_API_URL` on the frontend host and `FRONTEND_URL` + the Google OAuth redirect URI on the backend host to match your deployed domains.

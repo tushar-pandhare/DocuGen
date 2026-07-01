@@ -15,6 +15,7 @@ import MyDocuments from "./pages/MyDocuments";
 import TemplateUsage from "./pages/TemplateUsage";
 import TestPDF from "./pages/TestPdf";
 import AiAssistant from "./pages/AiAssistant";
+import ProtectedRoute from "./pages/ProtectedRoute";
 
 const App = () => {
   return (
@@ -22,22 +23,22 @@ const App = () => {
       <BrowserRouter>
         <Routes>
           {/* Wildcard needed because MainPage renders its own <Routes> */}
-          <Route path="/*" element={<MainPage />} />
-          <Route path="/invoice-generate" element={<InvoiceGenerator />} />
-          <Route path="/pdf-generate" element={<ImageGenerator />} />
+          <Route path="/*" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
+          <Route path="/invoice-generate" element={<ProtectedRoute><InvoiceGenerator /></ProtectedRoute>} />
+          <Route path="/pdf-generate" element={<ProtectedRoute><ImageGenerator /></ProtectedRoute>} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/drive-files" element={<DriveFiles />} />
-          <Route path="/text-extractor" element={<TextExtractor />} />
-          <Route path="/compress" element={<FileCompressor />} />
-          <Route path="/pdf-to-image" element={<PdfToImage />} />
-          <Route path="/templates" element={<TemplateLibrary />} />
-          <Route path="/templates/create" element={<TemplateBuilder />} />
-          <Route path="/templates/edit/:id" element={<TemplateBuilder />} />
-          <Route path="/templates/use/:id" element={<TemplateUsage />} />
-          <Route path="/my-documents" element={<MyDocuments />} />
-          <Route path="/test-pdf" element={<TestPDF />} />
-          <Route path="/ai-assistant" element={<AiAssistant />} />
+          <Route path="/drive-files" element={<ProtectedRoute><DriveFiles /></ProtectedRoute>} />
+          <Route path="/text-extractor" element={<ProtectedRoute><TextExtractor /></ProtectedRoute>} />
+          <Route path="/compress" element={<ProtectedRoute><FileCompressor /></ProtectedRoute>} />
+          <Route path="/pdf-to-image" element={<ProtectedRoute><PdfToImage /></ProtectedRoute>} />
+          <Route path="/templates" element={<ProtectedRoute><TemplateLibrary /></ProtectedRoute>} />
+          <Route path="/templates/create" element={<ProtectedRoute><TemplateBuilder /></ProtectedRoute>} />
+          <Route path="/templates/edit/:id" element={<ProtectedRoute><TemplateBuilder /></ProtectedRoute>} />
+          <Route path="/templates/use/:id" element={<ProtectedRoute><TemplateUsage /></ProtectedRoute>} />
+          <Route path="/my-documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
+          <Route path="/test-pdf" element={<ProtectedRoute><TestPDF /></ProtectedRoute>} />
+          <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistant /></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>
     </>

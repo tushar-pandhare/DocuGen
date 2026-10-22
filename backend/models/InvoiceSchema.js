@@ -87,6 +87,12 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    gstRate: {
+      type: Number,
+      default: 18,
+      min: 0,
+      max: 100
+    },
     total: {
       type: Number,
       required: true

@@ -426,22 +426,33 @@
 // }
 import { useNavigate } from "react-router-dom";
 import api from '../services/api';
+import { pollJob } from '../services/jobService';
+import SummariseResult from '../components/SummariseResult';
 import { 
   Upload, FileText, Copy, Check, Loader2, 
   Image, File, Trash2, Sparkles, CloudUpload, 
-  ArrowLeft, Zap, Shield, Clock, Award, Eye, Cloud
+  ArrowLeft, Zap, Shield, Clock, Award, Eye, Cloud, Brain
 } from "lucide-react";
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, createElement } from 'react';
 
 export default function TextExtractor() {
   const [file, setFile] = useState(null);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [jobProgress, setJobProgress] = useState(0);
+  const [jobState, setJobState] = useState("");
   const [copied, setCopied] = useState(false);
   const [uploadToDrive, setUploadToDrive] = useState(false);
   const [driveFileId, setDriveFileId] = useState(null);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [checkingDrive, setCheckingDrive] = useState(true);
+
+  // AI Summary & Entities state
+  const [summary, setSummary] = useState("");
+  const [entities, setEntities] = useState({ people: [], organizations: [], dates: [], amounts: [] });
+  const [summarising, setSummarising] = useState(false);
+  const [autoSummarise, setAutoSummarise] = useState(true);
+
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -488,12 +499,27 @@ export default function TextExtractor() {
   };
 
   const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setText("");
-      setDriveFileId(null);
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    const isSupported = selectedFile.type.startsWith("image/") ||
+      selectedFile.type === "application/pdf";
+    if (!isSupported) {
+      e.target.value = "";
+      alert("Choose an image or PDF file.");
+      return;
     }
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      e.target.value = "";
+      alert("Choose a file smaller than 10 MB.");
+      return;
+    }
+
+    setFile(selectedFile);
+    setText("");
+    setSummary("");
+    setEntities({ people: [], organizations: [], dates: [], amounts: [] });
+    setDriveFileId(null);
   };
 
   const handleDragOver = (e) => {
@@ -509,12 +535,24 @@ export default function TextExtractor() {
   const handleDrop = (e) => {
     e.preventDefault();
     e.currentTarget.classList.remove("border-indigo-500", "bg-indigo-50");
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (droppedFile.type.startsWith("image/") || droppedFile.type === "application/pdf")) {
-      setFile(droppedFile);
-      setText("");
-      setDriveFileId(null);
+    const droppedFile = Array.from(e.dataTransfer.files).find(
+      (candidate) => candidate.type.startsWith("image/") || candidate.type === "application/pdf"
+    );
+    if (!droppedFile) {
+      alert("Drop an image or PDF file.");
+      return;
     }
+    if (droppedFile.size > 10 * 1024 * 1024) {
+      alert("Choose a file smaller than 10 MB.");
+      return;
+    }
+
+    setFile(droppedFile);
+    setText("");
+    setSummary("");
+    setEntities({ people: [], organizations: [], dates: [], amounts: [] });
+    setDriveFileId(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const uploadTextToDrive = async (extractedText, fileName) => {
@@ -551,22 +589,75 @@ export default function TextExtractor() {
 
     try {
       setLoading(true);
-      const res = await api.post("/ocr/extract-text", formData, {
+      setJobProgress(0);
+      setJobState("queuing");
+
+      // 1. Enqueue the OCR job (returns 202 + jobId)
+      const enqueueRes = await api.post("/ocr/extract-text", formData, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const { jobId, queue } = enqueueRes.data;
 
-      const data = res.data;
+      // 2. Poll until done
+      const result = await pollJob(jobId, queue, {
+        onProgress: (p) => setJobProgress(p),
+        onStateChange: (s) => setJobState(s),
+      });
 
-      setText(data.text);
+      setText(result.text);
 
-      if (uploadToDrive && data.text) {
-        const fileId = await uploadTextToDrive(data.text, file.name);
+      if (uploadToDrive && result.text) {
+        const fileId = await uploadTextToDrive(result.text, file.name);
         if (fileId) alert("Extracted text uploaded to Google Drive!");
       }
+
+      // Automatically trigger summarise if enabled
+      if (autoSummarise && result.text) {
+        handleGenerateSummary(result.text);
+      }
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "OCR failed");
     } finally {
       setLoading(false);
+      setJobState("");
+    }
+  };
+
+  const handleGenerateSummary = async (customText) => {
+    const textToSummarise = typeof customText === "string" ? customText : text;
+    if (!textToSummarise || !textToSummarise.trim()) {
+      alert("No text available to summarise. Please extract text first.");
+      return;
+    }
+
+    try {
+      setSummarising(true);
+      const res = await api.post(
+        "/summarise",
+        {
+          text: textToSummarise,
+          fileName: file?.name || "extracted_text.txt",
+        },
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      const { jobId, queue } = res.data;
+      if (jobId) {
+        const result = await pollJob(jobId, queue || "summarise");
+        if (result) {
+          setSummary(result.summary || "Summary unavailable");
+          setEntities(
+            result.entities || { people: [], organizations: [], dates: [], amounts: [] }
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Summarise error:", err);
+      setSummary("Summary unavailable");
+    } finally {
+      setSummarising(false);
     }
   };
 
@@ -579,7 +670,11 @@ export default function TextExtractor() {
   const clearAll = () => {
     setFile(null);
     setText("");
+    setSummary("");
+    setEntities({ people: [], organizations: [], dates: [], amounts: [] });
     setDriveFileId(null);
+    setJobProgress(0);
+    setJobState("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -772,6 +867,26 @@ export default function TextExtractor() {
               {/* Drive Section — conditionally rendered */}
               {renderDriveSection()}
 
+              {/* Auto Summarise Toggle */}
+              <div className="mt-4 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100/80 flex items-center justify-between">
+                <label htmlFor="auto-summarise-toggle" className="flex items-center gap-2.5 cursor-pointer">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-slate-700">Auto-Generate AI Summary</span>
+                    <p className="text-xs text-slate-400">Summarize & extract key entities after OCR</p>
+                  </div>
+                </label>
+                <input
+                  id="auto-summarise-toggle"
+                  type="checkbox"
+                  checked={autoSummarise}
+                  onChange={(e) => setAutoSummarise(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+
               <button
                 onClick={handleExtract}
                 disabled={!file || loading}
@@ -780,7 +895,7 @@ export default function TextExtractor() {
                 {loading ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    Processing...
+                    {jobState === "active" ? `Processing… ${jobProgress}%` : "Queuing job…"}
                   </>
                 ) : (
                   <>
@@ -789,7 +904,23 @@ export default function TextExtractor() {
                   </>
                 )}
               </button>
+
+              {/* Progress bar — shown while job is running */}
+              {loading && (
+                <div className="mt-3">
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-2 bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+                      style={{ width: `${jobProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 text-center capitalize">
+                    {jobState || "waiting"} — {jobProgress}%
+                  </p>
+                </div>
+              )}
             </div>
+
           </div>
 
           {/* Results Section */}
@@ -807,13 +938,24 @@ export default function TextExtractor() {
                     </div>
                   </div>
                   {text && (
-                    <button
-                      onClick={copyToClipboard}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 text-white rounded-lg text-sm hover:bg-white/20 transition"
-                    >
-                      {copied ? <Check size={14} /> : <Copy size={14} />}
-                      {copied ? "Copied" : "Copy"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleGenerateSummary(text)}
+                        disabled={summarising}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                        title="Generate AI summary and extract key entities"
+                      >
+                        {summarising ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        {summarising ? "Summarising…" : "Generate Summary"}
+                      </button>
+                      <button
+                        onClick={copyToClipboard}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs font-medium hover:bg-white/20 transition"
+                      >
+                        {copied ? <Check size={13} /> : <Copy size={13} />}
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -840,14 +982,37 @@ export default function TextExtractor() {
                 )}
 
                 {text && !loading && (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 max-h-96 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed">
-                      {text}
-                    </pre>
-                  </div>
+                  <>
+                    <textarea
+                      className="w-full h-60 p-2 border rounded bg-slate-50 text-slate-700"
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                    />
+                    <button
+                      onClick={async () => {
+                        if (!file) return;
+                        const fileId = await uploadTextToDrive(text, file.name);
+                        if (fileId) alert("Edited text uploaded to Google Drive!");
+                      }}
+                      className="mt-2 w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2 rounded"
+                    >
+                      Save edited text to Drive
+                    </button>
+                  </>
                 )}
               </div>
             </div>
+
+            {/* AI Summary and Key Entities */}
+            {(text || summarising || summary) && (
+              <SummariseResult
+                summary={summary}
+                entities={entities}
+                loading={summarising}
+                onGenerateSummary={() => handleGenerateSummary(text)}
+                hasText={!!text}
+              />
+            )}
 
             {/* Stats Card */}
             {text && (
@@ -906,10 +1071,10 @@ export default function TextExtractor() {
             { icon: Shield, label: "High Accuracy", sub: "AI-powered OCR" },
             { icon: CloudUpload, label: "Cloud Backup", sub: "Save to Google Drive" },
             { icon: Clock, label: "Multiple Formats", sub: "Images & PDFs supported" },
-          ].map(({ icon: Icon, label, sub }) => (
+          ].map(({ icon, label, sub }) => (
             <div key={label} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 flex items-center gap-3">
               <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-                <Icon size={18} className="text-indigo-600" />
+                {createElement(icon, { size: 18, className: "text-indigo-600" })}
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-700">{label}</p>

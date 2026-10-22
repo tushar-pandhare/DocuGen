@@ -1,7 +1,8 @@
 // frontend/src/pages/AiAssistant.jsx
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { pollJob } from "../services/jobService";
 import {
   Upload, Send, Trash2, FileText, Bot, User,
   Loader2, AlertCircle, CheckCircle2, X, ChevronDown, ArrowLeft,
@@ -25,6 +26,98 @@ function StatusBadge({ session }) {
   );
 }
 
+function renderInlineMarkdown(text, keyPrefix) {
+  const tokens = text.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*\n]+\*|_[^_\n]+_)/g);
+  return tokens.map((token, index) => {
+    const key = `${keyPrefix}-${index}`;
+    if ((token.startsWith("**") && token.endsWith("**")) ||
+        (token.startsWith("__") && token.endsWith("__"))) {
+      return <strong key={key} className="font-semibold text-slate-900">{token.slice(2, -2)}</strong>;
+    }
+    if (token.startsWith("`") && token.endsWith("`")) {
+      return (
+        <code key={key} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.9em] text-indigo-700">
+          {token.slice(1, -1)}
+        </code>
+      );
+    }
+    if ((token.startsWith("*") && token.endsWith("*")) ||
+        (token.startsWith("_") && token.endsWith("_"))) {
+      return <em key={key}>{token.slice(1, -1)}</em>;
+    }
+    return token;
+  });
+}
+
+function AssistantMessage({ content }) {
+  const lines = content.split(/\r?\n/);
+  const blocks = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trim();
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const HeadingTag = heading[1].length === 1 ? "h3" : "h4";
+      blocks.push(
+        <HeadingTag key={`heading-${index}`} className="mb-2 mt-4 first:mt-0 text-base font-semibold tracking-tight text-slate-900">
+          {renderInlineMarkdown(heading[2], `heading-${index}`)}
+        </HeadingTag>
+      );
+      index += 1;
+      continue;
+    }
+
+    const isOrdered = /^\d+[.)]\s+/.test(line);
+    const isUnordered = /^[-*+]\s+/.test(line);
+    if (isOrdered || isUnordered) {
+      const listItems = [];
+      const ordered = isOrdered;
+      while (index < lines.length) {
+        const item = lines[index].trim();
+        const match = ordered ? item.match(/^\d+[.)]\s+(.+)$/) : item.match(/^[-*+]\s+(.+)$/);
+        if (!match) break;
+        listItems.push(match[1]);
+        index += 1;
+      }
+      const ListTag = ordered ? "ol" : "ul";
+      blocks.push(
+        <ListTag
+          key={`list-${index}`}
+          className={`${ordered ? "list-decimal" : "list-disc"} mb-3 space-y-1.5 pl-6 marker:text-indigo-500`}
+        >
+          {listItems.map((item, itemIndex) => (
+            <li key={`list-${index}-${itemIndex}`} className="pl-1">
+              {renderInlineMarkdown(item, `list-${index}-${itemIndex}`)}
+            </li>
+          ))}
+        </ListTag>
+      );
+      continue;
+    }
+
+    const paragraph = [line];
+    index += 1;
+    while (index < lines.length && lines[index].trim() && !/^(#{1,3})\s+/.test(lines[index].trim()) &&
+      !/^[-*+]\s+/.test(lines[index].trim()) && !/^\d+[.)]\s+/.test(lines[index].trim())) {
+      paragraph.push(lines[index].trim());
+      index += 1;
+    }
+    blocks.push(
+      <p key={`paragraph-${index}`} className="mb-3 last:mb-0">
+        {renderInlineMarkdown(paragraph.join(" "), `paragraph-${index}`)}
+      </p>
+    );
+  }
+
+  return <div>{blocks}</div>;
+}
+
 function ChatBubble({ msg }) {
   const isUser = msg.role === "user";
   return (
@@ -39,13 +132,13 @@ function ChatBubble({ msg }) {
         {isUser ? <User size={15} /> : <Bot size={15} />}
       </div>
       <div
-        className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+        className={`max-w-[85%] px-5 py-4 rounded-2xl text-[15px] leading-7 shadow-sm ${
           isUser
-            ? "bg-indigo-600 text-white rounded-tr-sm"
-            : "bg-white text-slate-800 rounded-tl-sm border border-slate-100"
+            ? "bg-indigo-600 text-white rounded-tr-sm whitespace-pre-wrap"
+            : "bg-white text-slate-700 rounded-tl-sm border border-slate-200"
         }`}
       >
-        {msg.content}
+        {isUser ? msg.content : <AssistantMessage content={msg.content} />}
       </div>
     </div>
   );
@@ -63,6 +156,8 @@ export default function AiAssistant() {
   ]);
   const [question, setQuestion] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [indexProgress, setIndexProgress] = useState(0);
+  const [indexState, setIndexState] = useState("");
   const [asking, setAsking] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -73,25 +168,28 @@ export default function AiAssistant() {
 
   const token = localStorage.getItem("token");
 
-  // Fetch existing session on mount
-  useEffect(() => {
-    fetchStatus();
-  }, []);
-
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function fetchStatus() {
+  const fetchStatus = useCallback(async () => {
     try {
       const res = await api.get("/ai/status", {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSession(res.data);
-    } catch {
+    } catch (err) {
+      console.error("AI document status check failed:", err);
       setSession({ hasDocument: false });
+      if (err.response?.status >= 500) {
+        setUploadError(err.response?.data?.message || "Could not connect to the document index.");
+      }
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
 
   async function handleFileUpload(file) {
     if (!file) return;
@@ -109,6 +207,8 @@ export default function AiAssistant() {
 
     setUploadError("");
     setUploading(true);
+    setIndexProgress(0);
+    setIndexState("queuing");
 
     const formData = new FormData();
     formData.append("document", file);
@@ -118,20 +218,39 @@ export default function AiAssistant() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      await fetchStatus();
+      if (!res.data?.jobId || !res.data?.queue) {
+        throw new Error("The server did not return a document indexing job.");
+      }
+
+      const result = await pollJob(res.data.jobId, res.data.queue, {
+        timeout: 15 * 60 * 1000,
+        onProgress: setIndexProgress,
+        onStateChange: setIndexState,
+      });
+      if (!result?.chunks || !Number.isFinite(result.charCount)) {
+        throw new Error("Document indexing finished without valid document details.");
+      }
+
+      setSession({
+        hasDocument: true,
+        filename: result.filename || file.name,
+        chunks: result.chunks,
+        charCount: result.charCount,
+      });
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `✅ Document loaded: **${res.data.filename}**\n\n${res.data.chunks} sections indexed from ${(res.data.charCount / 1000).toFixed(1)}k characters.\n\nWhat would you like to know about this document?`,
+          content: `✅ Document loaded: **${result.filename || file.name}**\n\n${result.chunks} sections indexed from ${(result.charCount / 1000).toFixed(1)}k characters.\n\nWhat would you like to know about this document?`,
         },
       ]);
     } catch (err) {
-      const msg = err.response?.data?.message || "Failed to process document.";
+      const msg = err.response?.data?.message || err.message || "Failed to process document.";
       setUploadError(msg);
     } finally {
       setUploading(false);
+      setIndexState("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -161,13 +280,17 @@ export default function AiAssistant() {
         { question: q },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (!res.data?.jobId || !res.data?.queue) {
+        throw new Error("The server did not return an answer job.");
+      }
+      const result = await pollJob(res.data.jobId, res.data.queue);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: res.data.answer },
+        { role: "assistant", content: result?.answer || "The assistant returned an empty answer." },
       ]);
     } catch (err) {
       const msg =
-        err.response?.data?.message || "Something went wrong. Please try again.";
+        err.response?.data?.message || err.message || "Something went wrong. Please try again.";
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: `❌ ${msg}` },
@@ -268,7 +391,11 @@ export default function AiAssistant() {
               </div>
               <div className="flex-1 min-w-0">
                 {uploading ? (
-                  <p className="font-medium text-indigo-600">Processing document…</p>
+                  <p className="font-medium text-indigo-600">
+                    {indexState === "active" || indexState === "processing"
+                      ? `Indexing document… ${indexProgress}%`
+                      : "Starting document indexing…"}
+                  </p>
                 ) : session?.hasDocument ? (
                   <>
                     <p className="font-medium text-slate-700 truncate">
@@ -301,6 +428,15 @@ export default function AiAssistant() {
                 </button>
               )}
             </div>
+
+            {uploading && (
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-indigo-100">
+                <div
+                  className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+                  style={{ width: `${indexProgress}%` }}
+                />
+              </div>
+            )}
 
             {uploadError && (
               <div className="mt-3 flex items-center gap-2 text-red-600 text-sm bg-red-50 px-3 py-2 rounded-lg">

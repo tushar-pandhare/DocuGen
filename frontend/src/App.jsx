@@ -15,19 +15,23 @@ import MyDocuments from "./pages/MyDocuments";
 import TemplateUsage from "./pages/TemplateUsage";
 import TestPDF from "./pages/TestPdf";
 import AiAssistant from "./pages/AiAssistant";
-import ProtectedRoute from "./pages/ProtectedRoute";
+import PipelineBuilder from "./pages/PipelineBuilder";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
   return (
     <>
       <BrowserRouter>
         <Routes>
+          {/* Public routes */}
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected routes — everything below requires a valid token */}
           {/* Wildcard needed because MainPage renders its own <Routes> */}
           <Route path="/*" element={<ProtectedRoute><MainPage /></ProtectedRoute>} />
           <Route path="/invoice-generate" element={<ProtectedRoute><InvoiceGenerator /></ProtectedRoute>} />
           <Route path="/pdf-generate" element={<ProtectedRoute><ImageGenerator /></ProtectedRoute>} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/login" element={<LoginPage />} />
           <Route path="/drive-files" element={<ProtectedRoute><DriveFiles /></ProtectedRoute>} />
           <Route path="/text-extractor" element={<ProtectedRoute><TextExtractor /></ProtectedRoute>} />
           <Route path="/compress" element={<ProtectedRoute><FileCompressor /></ProtectedRoute>} />
@@ -39,6 +43,7 @@ const App = () => {
           <Route path="/my-documents" element={<ProtectedRoute><MyDocuments /></ProtectedRoute>} />
           <Route path="/test-pdf" element={<ProtectedRoute><TestPDF /></ProtectedRoute>} />
           <Route path="/ai-assistant" element={<ProtectedRoute><AiAssistant /></ProtectedRoute>} />
+          <Route path="/pipeline" element={<ProtectedRoute><PipelineBuilder /></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>
     </>

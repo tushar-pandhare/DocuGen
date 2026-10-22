@@ -566,18 +566,20 @@ import {
   ChevronRight, Cloud, HardDrive, Layers,
   Eye, Edit2, Trash2, File, FileArchive,
   Database, Bot, UploadCloud, ScanLine, Brain,
-  BookOpen, MessageSquare, Upload,
+  BookOpen, MessageSquare, Upload, Menu, X, GripVertical,
 } from "lucide-react";
 import api from "../services/api";
 import DriveFiles from "./DriveFiles";
+import LoadingScreen from "../components/LoadingScreen";
 
 const TOOLS = [
-  { title: "Smart Invoice",    desc: "Professional invoices in seconds",       icon: FileText,  color: "blue",   path: "/invoice-generate" },
-  { title: "Image → PDF",      desc: "Merge images into a single PDF",         icon: Image,     color: "purple", path: "/pdf-generate" },
-  { title: "PDF → Image",      desc: "Convert every page to an image",         icon: Image,     color: "teal",   path: "/pdf-to-image" },
-  { title: "Text OCR",         desc: "Extract text from any document",         icon: ScanLine,  color: "emerald",path: "/text-extractor" },
-  { title: "Compressor",       desc: "Shrink files without quality loss",      icon: Zap,       color: "rose",   path: "/compress" },
-  { title: "Template Studio",  desc: "Build and reuse doc templates",          icon: Layers,    color: "amber",  path: "/templates" },
+  { title: "Smart Invoice",    desc: "Professional invoices in seconds",       icon: FileText,      color: "blue",   path: "/invoice-generate" },
+  { title: "Image → PDF",      desc: "Merge images into a single PDF",         icon: Image,         color: "purple", path: "/pdf-generate" },
+  { title: "PDF → Image",      desc: "Convert every page to an image",         icon: Image,         color: "teal",   path: "/pdf-to-image" },
+  { title: "Text OCR",         desc: "Extract text from any document",         icon: ScanLine,      color: "emerald",path: "/text-extractor" },
+  { title: "Compressor",       desc: "Shrink files without quality loss",      icon: Zap,           color: "rose",   path: "/compress" },
+  { title: "Template Studio",  desc: "Build and reuse doc templates",          icon: Layers,        color: "amber",  path: "/templates" },
+  { title: "Pipeline Builder", desc: "Chain multiple processors in sequence",  icon: GripVertical,  color: "indigo", path: "/pipeline" },
 ];
 
 const ICON_BG = {
@@ -748,6 +750,7 @@ export default function Dashboard() {
   const [loading,          setLoading]          = useState(true);
   const [recentTemplates,  setRecentTemplates]  = useState([]);
   const [activeTab,        setActiveTab]        = useState("dashboard");
+  const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
   const [stats, setStats] = useState({ documents:0, images:0, templates:0, driveFilesCount:0, totalDriveSize:0 });
 
   const fetchDriveFiles = async () => {
@@ -801,17 +804,7 @@ export default function Dashboard() {
     await fetchDriveFiles();
   };
 
-  if (loading) return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#F8FAFC" }}>
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:16 }}>
-        <div style={{ width:48, height:48, borderRadius:14, background:"linear-gradient(135deg,#4F46E5,#7C3AED)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-          <FileText size={22} color="white" />
-        </div>
-        <div style={{ width:24, height:24, borderRadius:"50%", border:"3px solid #4F46E5", borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </div>
-  );
+  if (loading) return <LoadingScreen />;
 
   const isGoogleConnected = user?.googleTokens?.access_token && Object.keys(user.googleTokens).length > 0;
   const firstName = user?.name?.split(" ")[0] || "there";
@@ -839,7 +832,7 @@ export default function Dashboard() {
       <div style={{
         background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 55%, #9333EA 100%)",
         borderRadius: 24,
-        padding: "32px 36px",
+        padding: "clamp(22px,4vw,32px) clamp(18px,5vw,36px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
@@ -853,12 +846,12 @@ export default function Dashboard() {
         <div style={{ position:"absolute", top:-30, right:180, width:140, height:140, borderRadius:"50%", background:"rgba(255,255,255,0.06)" }} />
         <div style={{ position:"absolute", bottom:-40, right:60, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.04)" }} />
 
-        <div style={{ position:"relative" }}>
+        <div style={{ position:"relative", flex:"1 1 260px" }}>
           <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"rgba(255,255,255,0.15)", borderRadius:20, padding:"4px 12px", marginBottom:12 }}>
             <Sparkles size={12} color="white" />
             <span style={{ fontSize:"12px", fontWeight:600, color:"white" }}>AI-Powered Document Workspace</span>
           </div>
-          <h1 style={{ fontSize:"26px", fontWeight:800, color:"white", margin:"0 0 6px", letterSpacing:"-0.02em" }}>
+          <h1 style={{ fontSize:"clamp(20px,4vw,26px)", fontWeight:800, color:"white", margin:"0 0 6px", letterSpacing:"-0.02em" }}>
             Welcome back, {firstName} 👋
           </h1>
           <p style={{ fontSize:"14px", color:"rgba(255,255,255,0.75)", margin:0, maxWidth:440 }}>
@@ -866,10 +859,10 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div style={{ display:"flex", gap:12, flexShrink:0, position:"relative" }}>
+        <div style={{ display:"flex", gap:12, flexWrap:"wrap", flex:"1 1 260px", position:"relative" }}>
           <button
             onClick={() => navigate("/ai-assistant")}
-            style={{ display:"inline-flex", alignItems:"center", gap:8, background:"white", color:"#4F46E5", padding:"11px 20px", borderRadius:12, border:"none", cursor:"pointer", fontWeight:700, fontSize:"14px", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", transition:"all 0.15s" }}
+            style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:8, flex:"1 1 160px", background:"white", color:"#4F46E5", padding:"11px 20px", borderRadius:12, border:"none", cursor:"pointer", fontWeight:700, fontSize:"14px", boxShadow:"0 2px 8px rgba(0,0,0,0.15)", transition:"all 0.15s", whiteSpace:"nowrap" }}
             onMouseEnter={e=>{ e.currentTarget.style.transform="translateY(-1px)"; e.currentTarget.style.boxShadow="0 6px 16px rgba(0,0,0,0.2)"; }}
             onMouseLeave={e=>{ e.currentTarget.style.transform="none"; e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.15)"; }}
           >
@@ -877,7 +870,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/text-extractor")}
-            style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.15)", color:"white", padding:"11px 20px", borderRadius:12, border:"1px solid rgba(255,255,255,0.3)", cursor:"pointer", fontWeight:600, fontSize:"14px", transition:"all 0.15s" }}
+            style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:8, flex:"1 1 160px", background:"rgba(255,255,255,0.15)", color:"white", padding:"11px 20px", borderRadius:12, border:"1px solid rgba(255,255,255,0.3)", cursor:"pointer", fontWeight:600, fontSize:"14px", transition:"all 0.15s", whiteSpace:"nowrap" }}
             onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"}
             onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
           >
@@ -887,7 +880,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Stats ── */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px,1fr))", gap:"clamp(10px,2vw,14px)" }}>
         <StatCard title="Drive Files" value={stats.driveFilesCount} subtitle={formatSize(stats.totalDriveSize)} icon={Database} color="blue" />
         <StatCard title="Templates"   value={stats.templates}        icon={Layers}   color="purple" />
         <StatCard title="Images"      value={stats.images}           icon={Image}    color="emerald" />
@@ -896,8 +889,8 @@ export default function Dashboard() {
 
       {/* ── Google Drive banner ── */}
       {!isGoogleConnected && (
-        <div style={{ background:"#EFF6FF", border:"1px solid #DBEAFE", borderRadius:16, padding:"18px 22px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+        <div style={{ background:"#EFF6FF", border:"1px solid #DBEAFE", borderRadius:16, padding:"18px 22px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:14, flex:"1 1 240px" }}>
             <div style={{ width:40, height:40, borderRadius:10, background:"#DBEAFE", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
               <Cloud size={18} color="#2563EB" />
             </div>
@@ -908,7 +901,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={handleGoogleConnect}
-            style={{ flexShrink:0, background:"#2563EB", color:"white", padding:"9px 20px", borderRadius:10, border:"none", cursor:"pointer", fontWeight:600, fontSize:"13px", whiteSpace:"nowrap" }}
+            style={{ flex:"0 1 auto", background:"#2563EB", color:"white", padding:"9px 20px", borderRadius:10, border:"none", cursor:"pointer", fontWeight:600, fontSize:"13px", whiteSpace:"nowrap" }}
           >
             Connect Now →
           </button>
@@ -923,21 +916,23 @@ export default function Dashboard() {
             <p style={{ fontSize:"12px", color:"#94A3B8", margin:"4px 0 0" }}>Everything you need in one place</p>
           </div>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:16, alignItems:"start" }}>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:16, alignItems:"stretch" }}>
           {/* tool grid */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+          <div style={{ flex:"3 1 320px", display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px,1fr))", gap:12 }}>
             {TOOLS.map(tool => <ToolCard key={tool.path} tool={tool} onClick={() => navigate(tool.path)} />)}
           </div>
           {/* RAG panel */}
-          <RAGPanel navigate={navigate} />
+          <div style={{ flex:"2 1 260px" }}>
+            <RAGPanel navigate={navigate} />
+          </div>
         </div>
       </div>
 
       {/* ── Recent Templates + Drive Files ── */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:16 }}>
 
         {/* Templates */}
-        <div style={{ background:"#fff", border:"1px solid #F1F5F9", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
+        <div style={{ flex:"1 1 320px", background:"#fff", border:"1px solid #F1F5F9", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
           <div style={{ padding:"18px 22px", borderBottom:"1px solid #F8FAFC", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div>
               <div style={{ fontSize:"14px", fontWeight:600, color:"#0F172A" }}>Recent Templates</div>
@@ -974,7 +969,7 @@ export default function Dashboard() {
         </div>
 
         {/* Drive Files */}
-        <div style={{ background:"#fff", border:"1px solid #F1F5F9", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
+        <div style={{ flex:"1 1 320px", background:"#fff", border:"1px solid #F1F5F9", borderRadius:16, overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
           <div style={{ padding:"18px 22px", borderBottom:"1px solid #F8FAFC", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div>
               <div style={{ fontSize:"14px", fontWeight:600, color:"#0F172A" }}>{isGoogleConnected ? "Recent Drive Files" : "Google Drive"}</div>
@@ -1041,8 +1036,32 @@ export default function Dashboard() {
     </div>
   );
 
+  const NAV_ITEMS = [
+    { label:"Dashboard", tab:"dashboard", path:"/" },
+    { label:"Templates", tab:"templates", path:"/templates" },
+    { label:"My Documents", tab:"documents", path:"/my-documents" },
+    ...(isGoogleConnected ? [{ label:"Drive Files", tab:"drive", path:"/drive-files" }] : []),
+  ];
+
+  const goTo = (item) => { setActiveTab(item.tab); navigate(item.path); setMobileMenuOpen(false); };
+
   return (
     <div style={{ minHeight:"100vh", background:"#F8FAFC", fontFamily:"'Inter',sans-serif" }}>
+      <style>{`
+        .dg-nav-tabs { display:flex; align-items:center; gap:2px; }
+        .dg-nav-username { display:inline; }
+        .dg-hamburger { display:none; }
+        .dg-mobile-panel { display:none; }
+        @media (max-width: 780px) {
+          .dg-nav-tabs { display:none; }
+          .dg-hamburger { display:flex; }
+          .dg-nav-username { display:none; }
+        }
+        .dg-mobile-panel.open { display:flex; }
+        @media (hover: none) {
+          .file-actions { opacity: 1 !important; }
+        }
+      `}</style>
 
       {/* ── Nav ── */}
       <div style={{
@@ -1050,26 +1069,21 @@ export default function Dashboard() {
         background:"rgba(255,255,255,0.85)", backdropFilter:"blur(12px)",
         borderBottom:"1px solid #F1F5F9",
       }}>
-        <div style={{ maxWidth:1280, margin:"0 auto", padding:"0 24px", height:56, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ maxWidth:1280, margin:"0 auto", padding:"0 clamp(12px,4vw,24px)", height:56, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
           {/* Logo */}
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ width:32, height:32, borderRadius:9, background:"linear-gradient(135deg,#4F46E5,#7C3AED)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+            <div style={{ width:32, height:32, borderRadius:9, background:"linear-gradient(135deg,#4F46E5,#7C3AED)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
               <FileText size={15} color="white" />
             </div>
-            <span style={{ fontWeight:800, fontSize:"15px", color:"#0F172A", letterSpacing:"-0.01em" }}>DocuGen</span>
+            <span style={{ fontWeight:800, fontSize:"15px", color:"#0F172A", letterSpacing:"-0.01em", whiteSpace:"nowrap" }}>DocuGen</span>
           </div>
 
-          {/* Nav tabs */}
-          <div style={{ display:"flex", alignItems:"center", gap:2 }}>
-            {[
-              { label:"Dashboard", tab:"dashboard", path:"/" },
-              { label:"Templates", tab:"templates", path:"/templates" },
-              { label:"My Documents", tab:"documents", path:"/my-documents" },
-              ...(isGoogleConnected ? [{ label:"Drive Files", tab:"drive", path:"/drive-files" }] : []),
-            ].map(item => (
-              <button key={item.tab} onClick={() => { setActiveTab(item.tab); navigate(item.path); }}
+          {/* Nav tabs (desktop) */}
+          <div className="dg-nav-tabs">
+            {NAV_ITEMS.map(item => (
+              <button key={item.tab} onClick={() => goTo(item)}
                 style={{
-                  padding:"6px 14px", borderRadius:8, fontSize:"13px", fontWeight:500, border:"none", cursor:"pointer", transition:"all 0.12s",
+                  padding:"6px 14px", borderRadius:8, fontSize:"13px", fontWeight:500, border:"none", cursor:"pointer", transition:"all 0.12s", whiteSpace:"nowrap",
                   background: activeTab===item.tab ? "#EEF2FF" : "none",
                   color:      activeTab===item.tab ? "#4F46E5"  : "#64748B",
                 }}
@@ -1077,25 +1091,49 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* User + logout */}
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 12px", borderRadius:10, background:"#F8FAFC", border:"1px solid #F1F5F9" }}>
-              <div style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E" }} />
-              <span style={{ fontSize:"12px", fontWeight:500, color:"#475569" }}>{firstName}</span>
+          {/* User + logout + hamburger */}
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            <div className="dg-nav-username" style={{ alignItems:"center", gap:8, padding:"5px 12px", borderRadius:10, background:"#F8FAFC", border:"1px solid #F1F5F9" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E" }} />
+                <span style={{ fontSize:"12px", fontWeight:500, color:"#475569" }}>{firstName}</span>
+              </div>
             </div>
             <button onClick={handleLogout}
-              style={{ width:34, height:34, borderRadius:9, background:"#F8FAFC", border:"1px solid #F1F5F9", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.12s" }}
+              style={{ width:34, height:34, borderRadius:9, background:"#F8FAFC", border:"1px solid #F1F5F9", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all 0.12s", flexShrink:0 }}
               onMouseEnter={e=>{ e.currentTarget.style.background="#FEE2E2"; e.currentTarget.style.borderColor="#FECACA"; }}
               onMouseLeave={e=>{ e.currentTarget.style.background="#F8FAFC"; e.currentTarget.style.borderColor="#F1F5F9"; }}
             >
               <LogOut size={14} color="#64748B" />
             </button>
+            <button className="dg-hamburger" onClick={() => setMobileMenuOpen(o => !o)}
+              style={{ width:34, height:34, borderRadius:9, background:"#F8FAFC", border:"1px solid #F1F5F9", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}
+            >
+              {mobileMenuOpen ? <X size={16} color="#64748B" /> : <Menu size={16} color="#64748B" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile dropdown */}
+        <div className={`dg-mobile-panel${mobileMenuOpen ? " open" : ""}`} style={{ flexDirection:"column", gap:2, padding:"8px 12px 12px", borderTop:"1px solid #F1F5F9" }}>
+          {NAV_ITEMS.map(item => (
+            <button key={item.tab} onClick={() => goTo(item)}
+              style={{
+                textAlign:"left", padding:"10px 12px", borderRadius:8, fontSize:"14px", fontWeight:500, border:"none", cursor:"pointer",
+                background: activeTab===item.tab ? "#EEF2FF" : "none",
+                color:      activeTab===item.tab ? "#4F46E5"  : "#334155",
+              }}
+            >{item.label}</button>
+          ))}
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", marginTop:4, borderTop:"1px solid #F8FAFC" }}>
+            <div style={{ width:7, height:7, borderRadius:"50%", background:"#22C55E" }} />
+            <span style={{ fontSize:"13px", fontWeight:500, color:"#475569" }}>Signed in as {firstName}</span>
           </div>
         </div>
       </div>
 
-      {/* ─+─ Body ─+─ */}
-      <div style={{ maxWidth:1280, margin:"0 auto", padding:"28px 24px" }}>
+      {/* ── Body ── */}
+      <div style={{ maxWidth:1280, margin:"0 auto", padding:"clamp(16px,4vw,28px) clamp(12px,4vw,24px)" }}>
         <Routes>
           <Route path="/" element={<DashboardContent />} />
           <Route path="/drive-files" element={<ProtectedDriveRoute><DriveFiles /></ProtectedDriveRoute>} />
@@ -1103,4 +1141,4 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}  
+} 

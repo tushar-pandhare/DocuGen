@@ -3,9 +3,11 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const auth = require("../middleware/authMiddleware");
+const { authLimiter } = require("../middleware/rateLimiter");
+const { signupRules, loginRules } = require("../middleware/validateInput");
 const router = express.Router();
 
-router.post("/signup", async (req, res) => {
+router.post("/signup", authLimiter, signupRules, async (req, res) => {
   const { name, email, password } = req.body;
   try {
     const existingUser = await User.findOne({ email });
@@ -20,7 +22,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter, loginRules, async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await User.findOne({ email });
@@ -43,9 +45,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
+const { getCache, setCache } = require("../utils/redis");
+
 router.get("/me", auth, async (req, res) => {
   try {
+    const cacheKey = `cache:user:${req.user.id}`;
+    const cachedUser = await getCache(cacheKey);
+    if (cachedUser) {
+      return res.json(cachedUser);
+    }
+
     const user = await User.findById(req.user.id).select("-password");
+    if (user) {
+      await setCache(cacheKey, user, 300); // 5-minute TTL
+    }
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user" });

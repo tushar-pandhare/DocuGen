@@ -145,7 +145,6 @@
 //   }
 // };
 const PDFDocument = require("pdfkit");
-const QRCode = require("qrcode");
 
 module.exports = async (data) => {
   return new Promise(async (resolve, reject) => {
@@ -176,14 +175,16 @@ module.exports = async (data) => {
       };
 
       const money = (amt) =>
-        `₹${Number(amt || 0).toLocaleString("en-IN")}`;
+        `₹${Number(amt || 0).toLocaleString("en-IN", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
 
-      const subtotal =
-        data.subtotal ||
+      const subtotal = data.subtotal ??
         data.items.reduce((sum, item) => sum + item.qty * item.price, 0);
-
-      const gst = data.gst || subtotal * 0.18;
-      const total = data.total || subtotal + gst;
+      const gstRate = data.gstRate ?? 18;
+      const gst = data.gst ?? Math.round(subtotal * gstRate) / 100;
+      const total = data.total ?? subtotal + gst;
 
       // ================= TOP HERO =================
       doc.rect(0, 0, W, 14).fill(colors.secondary);
@@ -193,12 +194,12 @@ module.exports = async (data) => {
       doc.font("Helvetica-Bold")
         .fontSize(30)
         .fillColor(colors.primary)
-        .text("DOCUGEN", 45, 38);
+        .text(data.company || "DOCUGEN", 45, 38, { width: 260, ellipsis: true });
 
       doc.font("Helvetica")
         .fontSize(10)
         .fillColor("white")
-        .text("Professional Document Solutions", 45, 72);
+        .text("Invoice issued to your client", 45, 72);
 
       doc.fontSize(8)
         .fillColor("#94a3b8")
@@ -220,6 +221,18 @@ module.exports = async (data) => {
       doc.fontSize(9)
         .fillColor("white")
         .text(`#${data.invoiceNo || "0001"}`, W - 123, 92);
+
+      const statusColor = data.status === "paid"
+        ? colors.success
+        : data.status === "overdue" ? "#dc2626" : colors.accent;
+      doc.roundedRect(W - 245, 85, 90, 24, 12).fill(statusColor);
+      doc.font("Helvetica-Bold")
+        .fontSize(8)
+        .fillColor("white")
+        .text((data.status || "pending").toUpperCase(), W - 238, 93, {
+          width: 76,
+          align: "center",
+        });
 
       // Paid status ribbon
       // doc.roundedRect(W - 250, 85, 90, 24, 12).fill(colors.success);
@@ -283,31 +296,49 @@ module.exports = async (data) => {
 
       doc.fontSize(14)
         .fillColor(colors.dark)
-        .text(data.company || "DocuGen", 328, y + 42);
+        .text(data.company || "DocuGen", 328, y + 42, { width: 210 });
 
       doc.font("Helvetica")
         .fontSize(9)
         .fillColor(colors.gray)
-        .text("123 Business Avenue", 328, y + 70)
-        .text("Mumbai, India - 400001", 328, y + 86)
-        .text("support@docugen.com", 328, y + 102);
+        .text("Invoice issuer", 328, y + 70)
+        .text("Business details not provided", 328, y + 86);
 
       // ================= ITEMS TABLE =================
       y = 395;
 
-      doc.roundedRect(40, y, 520, 34, 6).fill(colors.primary);
+      const drawItemsHeader = (headerY) => {
+        doc.roundedRect(40, headerY, 520, 34, 6).fill(colors.primary);
+        doc.font("Helvetica-Bold")
+          .fontSize(10)
+          .fillColor("white")
+          .text("ITEM DESCRIPTION", 55, headerY + 11)
+          .text("QTY", 305, headerY + 11)
+          .text("PRICE", 385, headerY + 11)
+          .text("TOTAL", 475, headerY + 11);
+      };
+      const drawContinuationHeader = () => {
+        doc.addPage();
+        doc.rect(0, 0, W, 48).fill(colors.dark);
+        doc.font("Helvetica-Bold")
+          .fontSize(14)
+          .fillColor("white")
+          .text("INVOICE CONTINUED", 40, 17);
+        doc.font("Helvetica")
+          .fontSize(10)
+          .text(`#${data.invoiceNo || "0001"}`, W - 200, 19, {
+            width: 160,
+            align: "right",
+          });
+        drawItemsHeader(78);
+        y = 122;
+      };
 
-      doc.font("Helvetica-Bold")
-        .fontSize(10)
-        .fillColor("white")
-        .text("ITEM DESCRIPTION", 55, y + 11)
-        .text("QTY", 305, y + 11)
-        .text("PRICE", 385, y + 11)
-        .text("TOTAL", 475, y + 11);
-
+      drawItemsHeader(y);
       y += 42;
 
       data.items.forEach((item, i) => {
+        if (y + 30 > H - 225) drawContinuationHeader();
         const rowTotal = item.qty * item.price;
 
         doc.roundedRect(40, y - 4, 520, 28, 4)
@@ -316,7 +347,7 @@ module.exports = async (data) => {
         doc.font("Helvetica")
           .fontSize(9)
           .fillColor(colors.slate)
-          .text(item.name, 55, y)
+          .text(item.name, 55, y, { width: 235, height: 24, ellipsis: true })
           .text(item.qty.toString(), 305, y)
           .text(money(item.price), 385, y)
           .text(money(rowTotal), 475, y);
@@ -325,65 +356,49 @@ module.exports = async (data) => {
       });
 
       // ================= TOTAL SUMMARY =================
-      const summaryY = y + 20;
+      let summaryY = y + 20;
+      if (summaryY + 105 > H - 100) {
+        drawContinuationHeader();
+        summaryY = y + 20;
+      }
 
-      doc.roundedRect(W - 220, summaryY, 180, 125, 12)
+      doc.roundedRect(W - 220, summaryY, 180, 105, 12)
         .fill(colors.light);
 
       doc.font("Helvetica")
         .fontSize(10)
         .fillColor(colors.gray)
-        .text("Subtotal", W - 205, summaryY + 18)
-        .text(money(subtotal), W - 105, summaryY + 18);
+        .text("Subtotal", W - 205, summaryY + 14)
+        .text(money(subtotal), W - 105, summaryY + 14);
 
-      doc.text("GST (18%)", W - 205, summaryY + 45)
-        .text(money(gst), W - 105, summaryY + 45);
+      doc.text(`GST (${gstRate}%)`, W - 205, summaryY + 38)
+        .text(money(gst), W - 105, summaryY + 38);
 
-      doc.moveTo(W - 205, summaryY + 72)
-        .lineTo(W - 55, summaryY + 72)
+      doc.moveTo(W - 205, summaryY + 62)
+        .lineTo(W - 55, summaryY + 62)
         .stroke(colors.border);
 
       doc.font("Helvetica-Bold")
-        .fontSize(15)
+        .fontSize(13)
         .fillColor(colors.primary)
-        .text("Grand Total", W - 205, summaryY + 88)
-        .text(money(total), W - 105, summaryY + 88);
+        .text("Total Due", W - 205, summaryY + 76)
+        .text(money(total), W - 105, summaryY + 76);
 
-      // ================= PAYMENT + QR =================
-      const payY = summaryY + 155;
-
-      doc.roundedRect(40, payY, 250, 100, 12).fill(colors.light);
+      doc.roundedRect(40, summaryY, 250, 105, 12).fill(colors.light);
 
       doc.font("Helvetica-Bold")
         .fontSize(10)
         .fillColor(colors.gray)
-        .text("PAYMENT DETAILS", 55, payY + 15);
+        .text("NOTES", 55, summaryY + 14);
 
       doc.font("Helvetica")
         .fontSize(9)
         .fillColor(colors.dark)
-        .text("Bank: HDFC Bank", 55, payY + 40)
-        .text("Account: 123456789012", 55, payY + 55)
-        .text("IFSC: HDFC0001234", 55, payY + 70)
-        .text("UPI: docugen@hdfcbank", 55, payY + 85);
-
-      const qrData = JSON.stringify({
-        invoiceNo: data.invoiceNo,
-        client: data.client,
-        total,
-      });
-
-      const qr = await QRCode.toBuffer(qrData);
-
-      doc.roundedRect(W - 150, payY, 95, 110, 12)
-        .fill("white")
-        .stroke(colors.border);
-
-      doc.image(qr, W - 138, payY + 10, { width: 72 });
-
-      doc.fontSize(7)
-        .fillColor(colors.gray)
-        .text("Scan to verify", W - 134, payY + 87);
+        .text(data.notes || "Thank you for your business.", 55, summaryY + 35, {
+          width: 220,
+          height: 58,
+          ellipsis: true,
+        });
 
       // ================= FOOTER =================
       doc.font("Helvetica-Bold")
@@ -407,7 +422,7 @@ module.exports = async (data) => {
 
       doc.fontSize(7)
         .fillColor("white")
-        .text("© 2026 DocuGen • Professional Document Solutions", 0, H - 16, {
+        .text(`© ${new Date().getFullYear()} ${data.company || "DocuGen"}`, 0, H - 16, {
           align: "center",
         });
 

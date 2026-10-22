@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 dist/
 backend/uploads/
@@ -6,3 +6,43 @@ backend/output/
 backend/vector_store/
 backend/temp.pdf
 backend/eng.traineddata
+# IDE & OS artifacts
+.vscode/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+coverage/
+
+# Build caches
+.cache/
+.vite/
+*.tmp
+
+# Frontend build & caches
+frontend/dist/
+frontend/.cache/
+frontend/node_modules/
+
+# Misc secrets & local env files
+.env*
+!**/.env.example
+backend/.env
+frontend/.env
+frontend/.env.production
+
+# Private project notes
+/interview.md
+/resume.md
+/README-prepare.md
+
+# Local and generated application data
+/backend/uploads/
+/backend/output/
+/backend/vector_store/
+/backend/temp.pdf
+/backend/eng.traineddata
+/worker/eng.traineddata

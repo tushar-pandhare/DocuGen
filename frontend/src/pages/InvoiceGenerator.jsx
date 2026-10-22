@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 import {
@@ -18,8 +18,27 @@ import {
   CheckCircle,
   XCircle,
   Receipt,
-  AlertCircle,
+  Search,
+  CalendarDays,
+  Check,
 } from "lucide-react";
+
+const dateInputValue = (date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const requestErrorMessage = async (error, fallback) => {
+  const payload = error.response?.data;
+  if (payload instanceof Blob) {
+    try {
+      return JSON.parse(await payload.text()).message || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return payload?.message || error.message || fallback;
+};
 
 export default function InvoiceGenerator() {
   const navigate = useNavigate();
@@ -30,10 +49,19 @@ export default function InvoiceGenerator() {
     clientEmail: "",
     clientPhone: "",
     company: "",
+    date: dateInputValue(new Date()),
+    dueDate: dateInputValue(new Date(Date.now() + 15 * 86400000)),
+    gstRate: 18,
+    notes: "",
     items: [{ name: "", qty: 1, price: 0 }],
-    total: 0,
   });
 
+  const [invoices, setInvoices] = useState([]);
+  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceFilter, setInvoiceFilter] = useState("all");
+  const [invoicesLoading, setInvoicesLoading] = useState(true);
+  const [invoiceError, setInvoiceError] = useState("");
+  const [invoiceActionId, setInvoiceActionId] = useState("");
   const [loading, setLoading] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [uploadToDrive, setUploadToDrive] = useState(false);
@@ -43,8 +71,23 @@ export default function InvoiceGenerator() {
   const [checkingConnection, setCheckingConnection] = useState(true);
   const [connectingDrive, setConnectingDrive] = useState(false);
 
-  const fetchDriveStatus = async () => {
-    if (!token) return;
+  const fetchInvoices = useCallback(async () => {
+    try {
+      setInvoiceError("");
+      const { data } = await api.get("/invoice");
+      setInvoices(data);
+    } catch (error) {
+      setInvoiceError(error.response?.data?.message || "Could not load your invoices.");
+    } finally {
+      setInvoicesLoading(false);
+    }
+  }, []);
+
+  const fetchDriveStatus = useCallback(async () => {
+    if (!token) {
+      setCheckingConnection(false);
+      return;
+    }
     try {
       setCheckingConnection(true);
       const res = await api.get("/auth/me");
@@ -55,15 +98,17 @@ export default function InvoiceGenerator() {
         Object.keys(user.googleTokens).length > 0;
       setDriveConnected(!!connected);
     } catch (error) {
+      console.error("Google Drive connection status error:", error);
       setDriveConnected(false);
     } finally {
       setCheckingConnection(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchDriveStatus();
-  }, [token]);
+    fetchInvoices();
+  }, [fetchDriveStatus, fetchInvoices]);
 
   const connectToDrive = async () => {
     try {
@@ -85,40 +130,32 @@ export default function InvoiceGenerator() {
     }
   };
 
-  const calculateTotal = (items) => {
-    return items.reduce(
-      (sum, item) => sum + (item.qty || 0) * (item.price || 0),
-      0
-    );
-  };
-
   const handleItemChange = (index, field, value) => {
-    const newItems = [...formData.items];
-    newItems[index][field] =
-      field === "qty" || field === "price"
-        ? parseFloat(value) || 0
-        : value;
-    setFormData({
-      ...formData,
-      items: newItems,
-      total: calculateTotal(newItems),
-    });
+    setFormData((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) => itemIndex === index
+        ? {
+            ...item,
+            [field]: field === "qty" || field === "price"
+              ? (value === "" ? "" : Number(value))
+              : value,
+          }
+        : item),
+    }));
   };
 
   const addItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { name: "", qty: 1, price: 0 }],
-    });
+    setFormData((current) => ({
+      ...current,
+      items: [...current.items, { name: "", qty: 1, price: 0 }],
+    }));
   };
 
   const removeItem = (index) => {
-    const newItems = formData.items.filter((_, i) => i !== index);
-    setFormData({
-      ...formData,
-      items: newItems,
-      total: calculateTotal(newItems),
-    });
+    setFormData((current) => ({
+      ...current,
+      items: current.items.filter((_, itemIndex) => itemIndex !== index),
+    }));
   };
 
   const generatePDF = async (isPreview = false) => {
@@ -128,7 +165,7 @@ export default function InvoiceGenerator() {
     }
 
     const validItems = formData.items.filter(
-      (item) => item.name && item.name.trim() && item.qty > 0 && item.price > 0
+      (item) => item.name.trim() && Number(item.qty) > 0 && Number(item.price) >= 0
     );
 
     if (validItems.length === 0) {
@@ -144,21 +181,19 @@ export default function InvoiceGenerator() {
 
     setDriveUploadStatus(null);
 
+    const previewWindow = isPreview ? window.open("about:blank", "_blank") : null;
+
     try {
-      // FIX: baseURL already includes /api — no /api prefix here
       const endpoint = isPreview ? "/invoice/preview" : "/invoice/download";
 
       const invoiceData = {
-        client: formData.client,
-        clientEmail: formData.clientEmail,
-        clientPhone: formData.clientPhone,
-        company: formData.company,
+        ...formData,
         items: validItems.map((item) => ({
           name: item.name,
           qty: Number(item.qty),
           price: Number(item.price),
         })),
-        total: formData.total,
+        gstRate: Number(formData.gstRate),
         uploadToDrive,
       };
 
@@ -169,18 +204,26 @@ export default function InvoiceGenerator() {
 
       const blob = new Blob([response.data], { type: "application/pdf" });
 
-      if (blob.size < 100) {
-        throw new Error("Generated PDF is too small");
+      if (blob.size < 100 || response.headers["content-type"]?.includes("application/json")) {
+        const payload = await blob.text();
+        throw new Error(JSON.parse(payload).message || "The server did not return a valid PDF.");
       }
 
       const url = window.URL.createObjectURL(blob);
 
       if (isPreview) {
-        window.open(url, "_blank");
+        if (previewWindow) previewWindow.location.href = url;
+        else {
+          const link = document.createElement("a");
+          link.href = url;
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.click();
+        }
       } else {
         const link = document.createElement("a");
         link.href = url;
-        link.download = `INVOICE_${formData.client}_${Date.now()}.pdf`;
+        link.download = `INVOICE_${response.headers["x-invoice-number"] || Date.now()}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -193,18 +236,65 @@ export default function InvoiceGenerator() {
           setDriveUploadStatus("error");
           setTimeout(() => setDriveUploadStatus(null), 5000);
         }
+        await fetchInvoices();
       }
 
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      setTimeout(() => window.URL.revokeObjectURL(url), isPreview ? 60000 : 1000);
     } catch (err) {
       console.error("PDF generation error:", err);
-      alert("Failed to generate PDF. Please try again.");
+      if (previewWindow && !previewWindow.closed) previewWindow.close();
+      alert(await requestErrorMessage(err, "Failed to generate invoice."));
     } finally {
       if (isPreview) {
         setPreviewLoading(false);
       } else {
         setLoading(false);
       }
+    }
+  };
+
+  const subtotal = Math.round(formData.items.reduce(
+    (sum, item) => sum + (Number(item.qty) || 0) * (Math.round((Number(item.price) || 0) * 100) / 100),
+    0
+  ) * 100) / 100;
+  const taxAmount = Math.round(subtotal * (Number(formData.gstRate) || 0)) / 100;
+  const total = Math.round((subtotal + taxAmount) * 100) / 100;
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const search = invoiceSearch.trim().toLowerCase();
+    const matchesSearch = !search ||
+      String(invoice.invoiceNo).toLowerCase().includes(search) ||
+      invoice.client.toLowerCase().includes(search);
+    const matchesStatus = invoiceFilter === "all" || invoice.status === invoiceFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const changeInvoiceStatus = async (invoiceId, status) => {
+    setInvoiceActionId(invoiceId);
+    try {
+      const { data } = await api.patch(`/invoice/${invoiceId}/status`, { status });
+      setInvoices((current) => current.map((invoice) => invoice._id === invoiceId ? data : invoice));
+    } catch (error) {
+      alert(error.response?.data?.message || "Could not update invoice status.");
+    } finally {
+      setInvoiceActionId("");
+    }
+  };
+
+  const downloadSavedInvoice = async (invoice) => {
+    setInvoiceActionId(invoice._id);
+    try {
+      const { data } = await api.get(`/invoice/${invoice._id}/pdf`, { responseType: "blob" });
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `INVOICE-${invoice.invoiceNo}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(await requestErrorMessage(error, "Could not download this invoice."));
+    } finally {
+      setInvoiceActionId("");
     }
   };
 
@@ -295,6 +385,60 @@ export default function InvoiceGenerator() {
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Client Email
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="email"
+                      value={formData.clientEmail}
+                      onChange={(e) => setFormData({ ...formData, clientEmail: e.target.value })}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl"
+                      placeholder="client@example.com"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Client Phone
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="tel"
+                      value={formData.clientPhone}
+                      onChange={(e) => setFormData({ ...formData, clientPhone: e.target.value })}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl"
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      Invoice Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-xl"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Right */}
@@ -323,13 +467,17 @@ export default function InvoiceGenerator() {
                         type="number"
                         placeholder="Qty"
                         value={item.qty}
+                        min="0.01"
+                        step="any"
                         onChange={(e) => handleItemChange(idx, "qty", e.target.value)}
                         className="w-16 px-2 py-2 border border-slate-200 rounded-lg text-center"
                       />
                       <input
                         type="number"
-                        placeholder="Price"
+                        placeholder="Unit price"
                         value={item.price}
+                        min="0"
+                        step="0.01"
                         onChange={(e) => handleItemChange(idx, "price", e.target.value)}
                         className="w-24 px-2 py-2 border border-slate-200 rounded-lg"
                       />
@@ -343,12 +491,47 @@ export default function InvoiceGenerator() {
                 </div>
 
                 <div className="mt-5 bg-slate-50 rounded-xl p-4 border">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-slate-800">Total Amount</span>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <label htmlFor="gst-rate" className="font-medium text-slate-700">Tax / GST (%)</label>
+                    <input
+                      id="gst-rate"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={formData.gstRate}
+                      onChange={(e) => setFormData({ ...formData, gstRate: e.target.value })}
+                      className="w-24 px-3 py-2 border border-slate-200 rounded-lg text-right"
+                    />
+                  </div>
+                  <div className="flex justify-between text-sm py-1">
+                    <span className="text-slate-500">Subtotal</span>
+                    <span>₹{subtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm py-1">
+                    <span className="text-slate-500">Tax ({Number(formData.gstRate) || 0}%)</span>
+                    <span>₹{taxAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-200 mt-2 pt-3">
+                    <span className="font-bold text-slate-800">Total Due</span>
                     <span className="text-xl font-bold text-indigo-600">
-                      ₹{(formData.total * 1.18).toLocaleString("en-IN")}
+                      ₹{total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                     </span>
                   </div>
+                </div>
+                <div className="mt-4">
+                  <label htmlFor="invoice-notes" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Notes / Payment Terms
+                  </label>
+                  <textarea
+                    id="invoice-notes"
+                    value={formData.notes}
+                    maxLength={2000}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl"
+                    placeholder="Optional note for your client"
+                  />
                 </div>
               </div>
             </div>
@@ -446,6 +629,132 @@ export default function InvoiceGenerator() {
               </button>
             </div>
           </div>
+
+          <section className="mt-10">
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">Your invoices</h2>
+                <p className="text-sm text-slate-500 mt-1">Download invoices and keep payment status up to date.</p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchInvoices}
+                className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Refresh
+              </button>
+            </div>
+
+            <div className="grid sm:grid-cols-[1fr_auto] gap-3 p-4 mb-4 bg-white rounded-xl border border-slate-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="search"
+                  value={invoiceSearch}
+                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                  placeholder="Search by invoice number or client"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg"
+                />
+              </div>
+              <select
+                value={invoiceFilter}
+                onChange={(e) => setInvoiceFilter(e.target.value)}
+                className="px-4 py-2.5 border border-slate-200 rounded-lg bg-white"
+                aria-label="Filter invoices by payment status"
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="overdue">Overdue</option>
+                <option value="paid">Paid</option>
+              </select>
+            </div>
+
+            {invoiceError && (
+              <div role="alert" className="mb-4 p-4 rounded-xl bg-red-50 text-sm text-red-700 border border-red-100">
+                {invoiceError}
+              </div>
+            )}
+
+            {invoicesLoading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+                <Loader2 size={20} className="animate-spin" /> Loading invoices...
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300">
+                <Receipt size={36} className="mx-auto text-slate-300 mb-3" />
+                <p className="font-medium text-slate-700">
+                  {invoices.length ? "No invoices match this search." : "Your saved invoices will appear here."}
+                </p>
+                {!invoices.length && <p className="text-sm text-slate-500 mt-1">Generate your first invoice above.</p>}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredInvoices.map((invoice) => {
+                  const statusStyles = {
+                    paid: "bg-emerald-50 text-emerald-700",
+                    pending: "bg-amber-50 text-amber-700",
+                    overdue: "bg-red-50 text-red-700",
+                  };
+                  return (
+                    <article key={invoice._id} className="bg-white rounded-xl border border-slate-200 p-4 md:p-5">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold text-slate-800">Invoice #{invoice.invoiceNo}</h3>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusStyles[invoice.status] || statusStyles.pending}`}>
+                              {invoice.status}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-600">{invoice.client}</p>
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarDays size={13} /> Issued {invoice.date}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarDays size={13} /> Due {invoice.dueDate}
+                            </span>
+                            <span>₹{Number(invoice.total).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => downloadSavedInvoice(invoice)}
+                            disabled={invoiceActionId === invoice._id}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            {invoiceActionId === invoice._id
+                              ? <Loader2 size={15} className="animate-spin" />
+                              : <Download size={15} />}
+                            PDF
+                          </button>
+                          {invoice.status !== "paid" ? (
+                            <button
+                              type="button"
+                              onClick={() => changeInvoiceStatus(invoice._id, "paid")}
+                              disabled={invoiceActionId === invoice._id}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              <Check size={15} /> Mark paid
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => changeInvoiceStatus(invoice._id, "pending")}
+                              disabled={invoiceActionId === invoice._id}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              <Clock3 size={15} /> Mark unpaid
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </div>

@@ -103,13 +103,6 @@ export default function SignupPage() {
 
         {/* Center */}
         <div>
-          <div
-            className="inline-block text-xs font-semibold uppercase tracking-widest px-3 py-1 rounded-full mb-6"
-            style={{ background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)" }}
-          >
-            Free to get started
-          </div>
-
           <h1
             className="font-bold leading-tight mb-4"
             style={{ fontSize: "2.6rem", color: "#F0F4FF", letterSpacing: "-0.02em" }}
@@ -120,7 +113,7 @@ export default function SignupPage() {
           </h1>
 
           <p className="text-base leading-relaxed mb-10" style={{ color: "#8B9CB6", maxWidth: "400px" }}>
-            Join thousands of teams who generate, extract, and manage documents with DocuGen.
+            Create an account to generate, extract, and manage documents with DocuGen.
           </p>
 
           {/* Step visual */}
@@ -148,23 +141,6 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { value: "50K+", label: "Documents processed" },
-            { value: "99.9%", label: "Uptime" },
-            { value: "256-bit", label: "Encryption" },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="rounded-xl p-4"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-            >
-              <div className="text-lg font-bold mb-0.5" style={{ color: "#818CF8" }}>{stat.value}</div>
-              <div className="text-xs" style={{ color: "#4B6080" }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* ── Right panel — form ── */}
@@ -187,7 +163,7 @@ export default function SignupPage() {
               Create your account
             </h2>
             <p className="text-sm" style={{ color: "#5A7090" }}>
-              Free forever. No credit card required.
+              Sign up to get started with your document workspace.
             </p>
           </div>
 

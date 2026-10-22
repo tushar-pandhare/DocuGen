@@ -1,159 +1,344 @@
 # DocuGen
 
-DocuGen is a MERN-stack document and PDF utility suite. It lets users generate invoices, convert between images and PDFs, extract text via OCR, compress files, build reusable document templates, manage Google Drive files, and chat with uploaded documents through a Gemini-powered RAG assistant.
+DocuGen is a full-stack document processing and automation platform built with Node.js, Express, MongoDB, and React. It combines document generation, file conversion, OCR, AI-powered document Q&A, template management, and Google Drive integration into one workspace for users who work with PDFs, invoices, templates, and uploaded files.
 
-## Features
+## Overview
 
-- JWT-based signup / login
-- Smart invoice generator with GST calculation, PDF preview, and download
-- Image → PDF conversion (batch)
-- PDF → image (JPEG) conversion
-- OCR text extraction (Tesseract.js)
-- Image and PDF compression
-- Custom document template builder (fields, layout, styling) with a template library and sharing
-- Google Drive integration — list, upload, rename, delete files
-- AI document assistant — upload a PDF/DOCX/TXT, it's chunked and embedded, then answered against via Gemini (retrieval-augmented generation)
+The product is designed as a document workflow hub where users can:
+
+- create and manage professional invoices
+- convert images to PDF and PDF to images
+- extract text from scanned or uploaded files
+- compress files to reduce size
+- build reusable document templates with generated PDF output
+- store and manage generated documents
+- connect Google Drive for file access and uploads
+- ask questions about uploaded documents using Gemini embeddings and MongoDB-backed retrieval
+
+## Core Features
+
+### 1. Authentication and user access
+- User signup and login with JWT authentication
+- Protected frontend routes using auth verification
+- User profile lookup through `/api/auth/me`
+- Basic rate limiting on auth and API requests
+
+### 2. Invoice generation and PDF export
+- Create invoices with client details, item lines, subtotal, GST, and total
+- PDF preview before download
+- Download generated invoices as PDF files
+- Save invoice records to MongoDB
+- Optional upload of invoice PDFs to Google Drive
+- Invoice history and delete support
+
+### 3. Image to PDF conversion
+- Upload one or more images
+- Convert them into a single PDF document
+- Support for everyday document workflows and scanned file processing
+
+### 4. PDF to image conversion
+- Upload a PDF and export pages as images
+- Useful for previewing, splitting, or extracting page visuals
+
+### 5. OCR and text extraction
+- Extract text from uploaded documents using Tesseract.js
+- Supports file-based OCR workflows for PDFs and images
+- Intended for scanning and converting document content into readable text
+
+### 6. File compression
+- Compress uploaded files to reduce storage / transfer size
+- Optional async processing using a queue-based worker setup
+- Handles heavy compression workflows separately from the API server
+
+### 7. Template library and document generation
+- Create templates with custom metadata, fields, styles, and structure
+- List, filter, search, sort, and browse public / personal templates
+- View a single template and track usage counts
+- Generate PDF documents from a template using dynamic payload data
+- Save generated documents in the database
+- Share templates with other users and manage permissions
+- Like templates and view overview stats
+
+### 8. Google Drive integration
+- Connect a Google account to the application
+- List files inside the DocuGen folder in Drive
+- Upload files directly to Drive
+- Rename files in Drive
+- Delete files from Drive
+- View file metadata and links
+
+### 9. AI document assistant
+- Upload PDF, TXT, or DOCX files
+- Extract and chunk document text
+- Generate embeddings using Google Gemini embeddings
+- Store document chunks and embeddings in MongoDB per user
+- Ask natural-language questions about the uploaded document
+- Retrieve the most relevant chunks with cosine similarity and answer through Gemini
+- Track uploaded document metadata and collection state
+
+### 10. Background job processing
+- Heavy operations are supported through BullMQ queues
+- Includes job-based processing for OCR, compression, PDF conversion, and invoice generation
+- Worker service runs separately to keep the API responsive
 
 ## Tech Stack
 
-**Backend**
-- Node.js, Express 4
-- MongoDB, Mongoose
-- JWT (`jsonwebtoken`) + `bcryptjs` for auth
+### Backend
+- Node.js
+- Express.js
+- MongoDB + Mongoose
+- JWT authentication with bcryptjs
 - Multer for uploads
-- PDFKit, `pdf-lib`, Puppeteer, `pdf-poppler`, `pdf2pic` for PDF generation/conversion
-- Tesseract.js for OCR
-- Sharp for image processing
-- `googleapis` for Google OAuth2 + Drive
-- Cloudinary (media storage)
-- `vectra` for the local vector store (RAG embeddings)
-- Helmet, `express-rate-limit`, `express-validator` (installed; not yet wired into any routes — see Known Issues)
+- PDF generation and manipulation using PDFKit, pdf-lib, Puppeteer, pdf-poppler, and pdf2pic
+- OCR with Tesseract.js
+- Image processing with Sharp
+- Google APIs for OAuth and Drive integration
+- Cloudinary integration
+- MongoDB for document chunks and embedding storage
+- BullMQ + Redis for async background job processing
+- Rate limiting and request validation with express-rate-limit and express-validator
 
-**Frontend**
-- React 19, Vite 7
-- React Router v7
+### Frontend
+- React 19
+- Vite
+- React Router
 - Axios
-- lucide-react (icons)
-- Tailwind CSS (installed; most of the UI currently uses inline styles rather than Tailwind classes)
+- Tailwind CSS
+- Lucide icons
+
+## Architecture
+
+The project is split into three main parts:
+
+1. API server: handles auth, upload routes, document processing, templates, AI indexing, and Google Drive APIs
+2. Worker service: processes long-running jobs asynchronously to avoid blocking the main server
+3. React UI: serves the dashboard and all user-facing document tools
 
 ## Project Structure
 
 ```text
-docugen/
+ABC/
 ├── backend/
 │   ├── controller/
 │   │   └── ocrController.js
 │   ├── middleware/
-│   │   └── authMiddleware.js        # JWT verification
+│   │   ├── authMiddleware.js
+│   │   ├── rateLimiter.js
+│   │   └── validateInput.js
 │   ├── models/
-│   │   ├── user.js
-│   │   ├── Template.js
+│   │   ├── Document.js
 │   │   ├── GeneratedDocument.js
 │   │   ├── InvoiceSchema.js
-│   │   └── Document.js
+│   │   ├── Template.js
+│   │   └── user.js
+│   ├── queues/
+│   │   └── jobQueue.js
 │   ├── routes/
-│   │   ├── auth.js                  # signup / login / me
-│   │   ├── googleAuth.js            # Google OAuth connect + callback
-│   │   ├── invoiceRoute.js
-│   │   ├── pdfRoutes.js             # images -> PDF
-│   │   ├── pdfToImageRouteMain.js   # PDF -> images
-│   │   ├── ocrRoute.js
+│   │   ├── aiAssistantRoute.js
+│   │   ├── auth.js
 │   │   ├── compressRoutes.js
 │   │   ├── driveRoutes.js
-│   │   ├── templateRoutes.js
-│   │   └── aiAssistantRoute.js      # RAG assistant (Gemini)
-│   ├── templates/                   # server-side HTML/PDF templates
-│   ├── utils/                       # cloudinary, PDF gen, Google Drive client, multer, route loader
-│   ├── vector_store/                # local embeddings cache (gitignored)
-│   └── server.js
-│
-└── frontend/
-    └── src/
-        ├── Context/ToastContext.jsx
-        ├── pages/                   # one file per route/feature
-        ├── services/api.js          # axios instance, injects JWT from localStorage
-        ├── templates/                # client-side invoice template
-        └── App.jsx                  # top-level router
+│   │   ├── googleAuth.js
+│   │   ├── invoiceRoute.js
+│   │   ├── jobRoutes.js
+│   │   ├── ocrRoute.js
+│   │   ├── pdfRoutes.js
+│   │   ├── pdfToImageRouteMain.js
+│   │   └── templateRoutes.js
+│   ├── templates/
+│   │   ├── templateServices.js
+│   │   └── invoiceTemplate.js
+│   ├── utils/
+│   │   ├── bullmqRedis.js
+│   │   ├── cloudinary.js
+│   │   ├── generatePDF.js
+│   │   ├── googleDrive.js
+│   │   ├── multer.js
+│   │   ├── redis.js
+│   │   └── routeLoader.js
+│   ├── vector_store/
+│   ├── uploads/
+│   ├── package.json
+│   ├── server.js
+│   └── .env
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── components/
+│   │   ├── Context/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   └── templates/
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   └── index.html
+├── worker/
+│   ├── processors/
+│   │   ├── compressProcessor.js
+│   │   ├── invoiceProcessor.js
+│   │   ├── ocrProcessor.js
+│   │   └── pdfToImageProcessor.js
+│   ├── worker.js
+│   └── package.json
+├── README.md
+├── DEPLOYMENT.md
+└── package.json
 ```
 
-## Getting Started
+## Environment Variables
 
-Clone the repository:
+### Backend `.env`
 
-```bash
-git clone https://github.com/your-username/docugen.git
-cd docugen
-```
-
-Install dependencies:
-
-```bash
-cd backend && npm install
-cd ../frontend && npm install
-```
-
-Set up backend environment variables:
-
-```bash
-cd backend
-cp .env.example .env
-```
-
-Fill in `.env`:
-
-```
+```env
 PORT=5000
 NODE_ENV=development
-MONGO_URI=mongodb+srv://<user>:<password>@cluster0.xxxxx.mongodb.net/DocuGen?retryWrites=true&w=majority
-JWT_SECRET=<generate with: openssl rand -hex 32>
-JWT_EXPIRE=1d
+MONGO_URI=mongodb+srv://<username>:<password>@<cluster-url>/<database>
+JWT_SECRET=your_super_secret_key
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_REDIRECT_URI=http://localhost:5000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
 GEMINI_API_KEY=your_gemini_api_key
-MAX_FILE_SIZE=10485760
-UPLOAD_DIR=uploads/
+REDIS_URL=redis://localhost:6379
+UPSTASH_REDIS_URL=rediss://:<token>@<host>:<port>
 ```
 
-Set up frontend environment variables (`frontend/.env`):
+### Frontend `.env`
 
-```
+```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-Run both apps in development:
+## Getting Started
+
+### 1. Install dependencies
 
 ```bash
-# backend
-cd backend && npm run dev
+cd backend
+npm install
 
-# frontend (separate terminal)
-cd frontend && npm run dev
+cd ../frontend
+npm install
 ```
 
-Backend runs on `http://localhost:5000`, frontend on `http://localhost:5173`.
+### 2. Start the backend server
 
-## API Overview
+```bash
+cd backend
+npm run dev
+```
 
-| Prefix | Routes file | Notes |
-|---|---|---|
-| `/api/auth` | `auth.js`, `googleAuth.js` | signup, login, me, Google OAuth |
-| `/api/invoice` | `invoiceRoute.js` | generate, preview, download, history |
-| `/api/pdf` | `pdfRoutes.js` | images → PDF |
-| `/api/pdf-to-image` | `pdfToImageRouteMain.js` | PDF → images |
-| `/api/ocr` | `ocrRoute.js` | text extraction |
-| `/api/compress` | `compressRoutes.js` | image/PDF compression |
-| `/api/drive` | `driveRoutes.js` | Drive file management |
-| `/api` | `templateRoutes.js` | template CRUD, sharing, generation |
-| `/api/ai` | `aiAssistantRoute.js` | RAG upload/ask/status/clear |
-| `/health` | `server.js` | health check |
+### 3. Start the background worker
 
-All routes except `/api/auth/signup`, `/api/auth/login`, and `/health` require a `Bearer <token>` header.
+```bash
+cd worker
+node worker.js
+```
 
-## Deployment
+### 4. Start the frontend
 
-- **Frontend** → Vercel (static Vite build)
-- **Backend** → Railway / Render (Puppeteer and local file writes mean it cannot run on Vercel's serverless functions)
+```bash
+cd frontend
+npm run dev
+```
 
-Set `VITE_API_URL` on the frontend host and `FRONTEND_URL` + the Google OAuth redirect URI on the backend host to match your deployed domains.
+The frontend typically runs on `http://localhost:5173` and the backend on `http://localhost:5000`.
+
+## Main API Routes
+
+### Authentication
+- `POST /api/auth/signup` - register a user
+- `POST /api/auth/login` - login and receive JWT
+- `GET /api/auth/me` - fetch authenticated user profile
+- `GET /api/auth/google` - start Google OAuth flow
+- `GET /api/auth/google/callback` - handle OAuth callback
+
+### Invoice
+- `POST /api/invoice/download` - create and save an invoice, then download its PDF
+- `POST /api/invoice/preview` - generate a PDF preview without saving it
+- `GET /api/invoice` - list the authenticated user's invoices
+- `GET /api/invoice/:id/pdf` - download a saved invoice PDF
+- `PATCH /api/invoice/:id/status` - mark a saved invoice as paid or pending
+
+### Documents and conversion
+- `POST /api/pdf/img` - convert uploaded images to PDF
+- `POST /api/pdf-to-image` - convert PDF to images
+- `POST /api/ocr/extract-text` - extract text from uploaded files
+- `POST /api/compress` - compress uploaded files
+
+### Templates and documents
+- `GET /api/templates` - fetch available templates
+- `GET /api/templates/:id` - fetch a specific template
+- `POST /api/templates` - create a template
+- `PUT /api/templates/:id` - update a template
+- `DELETE /api/templates/:id` - delete a template
+- `POST /api/templates/:id/generate` - generate a PDF from template data
+- `POST /api/templates/:id/share` - share a template
+- `DELETE /api/templates/:id/share/:userId` - unshare template
+- `GET /api/documents` - fetch generated documents
+
+### Google Drive
+- `GET /api/drive/files` - get Drive files in the DocuGen folder
+- `POST /api/drive/upload` - upload file to Drive
+- `PUT /api/drive/rename-file/:fileId` - rename a Drive file
+- `DELETE /api/drive/delete-file/:fileId` - delete a Drive file
+- `GET /api/drive/file-info/:fileId` - fetch file metadata
+
+### AI assistant
+- `POST /api/ai/upload` - upload and index a document for AI Q&A
+- `POST /api/ai/ask` - ask a question about the indexed document
+- `GET /api/ai/status` - check AI session status
+- `DELETE /api/ai/clear` - clear indexed document data
+
+### Job tracking
+- `GET /api/jobs/:id/status` - check asynchronous job status
+
+### Health check
+- `GET /health` - app health check
+
+## Frontend Pages and User Flows
+
+The client app includes:
+
+- `Login` and `Signup` screens
+- Dashboard / landing page with available tools
+- `InvoiceGenerator` for invoice creation and export
+- `ImageGenerator` for image-to-PDF conversion
+- `PdfToImg` for PDF-to-image extraction
+- `TextExtractor` for OCR-based text extraction
+- `FileCompressor` for compressing uploaded files
+- `TemplateLibrary` for browsing templates
+- `TemplateBuilder` for creating or editing template definitions
+- `TemplateUsage` for using a saved template to generate a PDF
+- `MyDocuments` for viewing generated documents
+- `DriveFiles` for Google Drive file access and management
+- `AiAssistant` for document-based Q&A using Gemini and MongoDB-backed embeddings
+- `TestPDF` utility page for quick PDF validation
+
+## Deployment Notes
+
+- The frontend can be deployed on Vercel
+- The backend and worker should run on a Node-compatible host such as Render, Railway, DigitalOcean, or a VPS
+- The app depends on MongoDB, Redis/BullMQ, Google OAuth credentials, and a Gemini API key
+- The AI assistant stores document chunks and embeddings in the configured MongoDB database; no separate vector database service is required
+
+## Security and project notes
+
+- Protected routes on the frontend require a valid JWT
+- Authenticated endpoints use middleware-based checks
+- API rate limiting is enabled to reduce brute-force abuse
+- Google Drive access is handled via OAuth tokens stored for the user
+- Large operations are separated into background worker queues for better scalability and reliability
+
+## Recommended next steps
+
+- Add environment example files for backend and frontend
+- Add a production-ready Docker setup
+- Add automated tests for routes, document conversion, and AI indexing
+- Improve error handling and validation for file uploads and processing jobs
+
+## License
+
+This project is currently configured for local project use and is not published under a formal public license in the repository metadata.

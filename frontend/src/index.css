@@ -1,1 +1,140 @@
 @import "tailwindcss";
+
+.loading-screen {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(99, 102, 241, 0.09), transparent 38%),
+    #f8fafc;
+  color: #0f172a;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px;
+}
+
+.loading-brand-mark {
+  position: relative;
+  display: grid;
+  width: 88px;
+  height: 88px;
+  place-items: center;
+  margin-bottom: 22px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 27px;
+  background: linear-gradient(145deg, #eef2ff, #f5f3ff);
+  box-shadow: 0 14px 35px rgba(79, 70, 229, 0.14);
+  animation: brand-float 2.8s ease-in-out infinite;
+}
+
+.loading-brand-icon {
+  display: grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  border-radius: 19px;
+  background: linear-gradient(145deg, #4f46e5, #7c3aed);
+  color: white;
+  box-shadow: 0 8px 16px rgba(79, 70, 229, 0.26);
+}
+
+.loading-brand-sparkle {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  border: 3px solid #f8fafc;
+  border-radius: 50%;
+  background: #fbbf24;
+  color: white;
+}
+
+.loading-brand-name {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -1.1px;
+}
+
+.loading-brand-name span {
+  color: #635bdb;
+}
+
+.loading-message {
+  margin: 7px 0 20px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loading-indicator span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #7367e8;
+  animation: loading-pulse 1s ease-in-out infinite;
+}
+
+.loading-indicator span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loading-indicator span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.loading-screen-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@keyframes brand-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes loading-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-brand-mark,
+  .loading-indicator span {
+    animation: none;
+  }
+}

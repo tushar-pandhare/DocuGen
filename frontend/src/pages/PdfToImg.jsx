@@ -452,6 +452,7 @@
 
 import { useState, useEffect } from "react";
 import api from '../services/api';
+import { pollJob } from '../services/jobService';
 import { useNavigate } from "react-router-dom";
 import { 
   Upload, FileText, Loader2, Download, ImageIcon, 
@@ -550,22 +551,30 @@ export default function PdfToImage() {
 
     try {
       setLoading(true);
-      const res = await api.post("/pdf-to-image", formData);
-              console.log(
-          "Full URL:",
-          `${api.defaults.baseURL}/pdf-to-image`
-        );
-      setImages(res.data.images);
+      setImages([]);
+      setUploadedFiles([]);
+      const { data } = await api.post("/pdf-to-image", formData);
+      if (!data?.jobId || !data?.queue) {
+        throw new Error("The server did not return a conversion job ID.");
+      }
 
-      if (uploadToDrive && res.data.images.length) {
+      const result = await pollJob(data.jobId, data.queue);
+      if (!Array.isArray(result?.images)) {
+        throw new Error("The conversion job completed without returning image files.");
+      }
+
+      setImages(result.images);
+
+      if (uploadToDrive && result.images.length) {
         setUploadedFiles([]);
-        const uploadPromises = res.data.images.map((img, idx) => uploadImageToDrive(img, idx + 1));
+        const uploadPromises = result.images.map((img, idx) => uploadImageToDrive(img, idx + 1));
         const results = await Promise.all(uploadPromises);
         setUploadedFiles(results.filter(r => r.success));
         alert(`${results.filter(r => r.success).length} images uploaded to Google Drive!`);
       }
-    } catch {
-      alert("Conversion failed");
+    } catch (error) {
+      console.error("PDF-to-image conversion failed:", error);
+      alert(error.response?.data?.message || error.message || "Conversion failed");
     } finally {
       setLoading(false);
     }

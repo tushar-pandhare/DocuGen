@@ -1,8 +1,11 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const mongoose = require("mongoose");
-require("dotenv").config();
+const { MongoMemoryServer } = require("mongodb-memory-server");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const RouteLoader = require("./utils/routeLoader");
+const { apiLimiter } = require("./middleware/rateLimiter");
 
 const app = express();
 
@@ -12,22 +15,37 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-if (!process.env.MONGO_URI) {
-  console.error("❌ MONGO_URI is not set in .env — server cannot start.");
-  process.exit(1);
+async function connectDatabase() {
+  let mongoUri = process.env.MONGO_URI;
+
+  try {
+    await mongoose.connect(mongoUri || "mongodb://localhost:27017/DocuGen", {
+      serverSelectionTimeoutMS: 5000,
+      bufferCommands: false,
+    });
+    console.log("✅ Database connected");
+  } catch (err) {
+    console.warn("⚠️ MongoDB primary connection failed:", err.message);
+
+    try {
+      const memoryMongo = await MongoMemoryServer.create({
+        instance: { dbName: "DocuGen" },
+      });
+      const fallbackUri = memoryMongo.getUri();
+      await mongoose.connect(fallbackUri, {
+        serverSelectionTimeoutMS: 5000,
+        bufferCommands: false,
+      });
+      console.log("✅ Database connected using in-memory MongoDB fallback");
+    } catch (fallbackErr) {
+      console.error("❌ MongoDB connection error:", err.message);
+      console.error("❌ In-memory MongoDB fallback failed:", fallbackErr.message);
+      process.exit(1);
+    }
+  }
 }
 
-// ==================== MONGODB ====================
-mongoose
-  .connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 5000,
-    bufferCommands: false,
-  })
-  .then(() => console.log("✅ Database connected"))
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
-    process.exit(1);
-  });
+connectDatabase();
 
 // ==================== CORS ====================
 const allowedOrigins = [
@@ -42,6 +60,7 @@ if (process.env.FRONTEND_URL) {
 
 app.use(
   cors({
+    exposedHeaders: ["X-Invoice-Number", "X-Drive-Uploaded"],
     origin: function (origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -65,6 +84,9 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
+// ==================== RATE LIMITING ====================
+app.use("/api", apiLimiter);
+
 // ==================== ROUTE LOADER ====================
 const routeLoader = new RouteLoader(app);
 
@@ -84,6 +106,13 @@ routeLoader.lazyLoad("/api/compress", "./routes/compressRoutes");
 routeLoader.lazyLoad("/api/pdf-to-image", "./routes/pdfToImageRouteMain");
 routeLoader.lazyLoad("/api", "./routes/templateRoutes");
 routeLoader.lazyLoad("/api/ai", "./routes/aiAssistantRoute");
+routeLoader.lazyLoad("/api/pipeline", "./routes/pipelineRoutes");
+routeLoader.lazyLoad("/api/summarise", "./routes/summariseRoute");
+routeLoader.lazyLoad("/summarise", "./routes/summariseRoute");
+
+// Job status polling (async operations)
+const jobRoutes = require("./routes/jobRoutes");
+app.use("/api/jobs", jobRoutes);
 
 // ==================== HEALTH CHECK ====================
 app.get("/health", (req, res) => {
@@ -117,8 +146,10 @@ const server = app.listen(PORT, () => {
 });
 
 // ==================== GRACEFUL SHUTDOWN ====================
-const shutdown = () => {
-  server.close(() => {
+const shutdown = async () => {
+  const { closeQueues } = require("./queues/jobQueue");
+  server.close(async () => {
+    await closeQueues();
     mongoose.connection.close(false, () => process.exit(0));
   });
   setTimeout(() => process.exit(1), 10000);

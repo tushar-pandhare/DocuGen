@@ -6,12 +6,19 @@ const GeneratedDocument = require('../models/GeneratedDocument');
 const { generatePDFFromTemplate } = require('../templates/templateServices');
 const { Readable } = require('stream');
 const { google } = require('googleapis');
+const { getCache, setCache, deleteCache, deletePattern } = require('../utils/redis');
 // ==================== TEMPLATE CRUD ====================
 
 // Get all templates (with filters)
 router.get('/templates', auth, async (req, res) => {
   try {
     const { category, search, sort, page = 1, limit = 20 } = req.query;
+
+    const cacheKey = `cache:templates:${req.user.id}:${category || 'all'}:${search || ''}:${sort || 'default'}:${page}:${limit}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
     
     let query = {
       $or: [
@@ -51,12 +58,15 @@ router.get('/templates', auth, async (req, res) => {
     
     const total = await Template.countDocuments(query);
     
-    res.json({
+    const responseData = {
       templates,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       total
-    });
+    };
+
+    await setCache(cacheKey, responseData, 120); // 2-minute TTL
+    res.json(responseData);
   } catch (err) {
     console.error('Get templates error:', err);
     res.status(500).json({ error: err.message });
@@ -193,6 +203,7 @@ router.post('/templates/:id/generate', auth, async (req, res) => {
         fileName: `${template.name}_${Date.now()}.pdf`,
         status: 'generated'
       });
+      await deleteCache(`cache:documents:${req.user.id}`);
     } catch (dbErr) {
       console.error('Database save error:', dbErr.message);
     }
@@ -224,7 +235,7 @@ router.post('/templates', auth, async (req, res) => {
       userId: req.user.id,
       ...req.body
     });
-    
+    await deletePattern("cache:templates:*");
     res.status(201).json(template);
   } catch (err) {
     console.error('Create template error:', err);
@@ -255,7 +266,7 @@ router.put('/templates/:id', auth, async (req, res) => {
       { ...req.body, updatedAt: Date.now() },
       { new: true, runValidators: true }
     );
-    
+    await deletePattern("cache:templates:*");
     res.json(updatedTemplate);
   } catch (err) {
     console.error('Update template error:', err);
@@ -274,7 +285,7 @@ router.delete('/templates/:id', auth, async (req, res) => {
     if (!template) {
       return res.status(404).json({ error: 'Template not found or unauthorized' });
     }
-    
+    await deletePattern("cache:templates:*");
     res.json({ message: 'Template deleted successfully' });
   } catch (err) {
     console.error('Delete template error:', err);
@@ -361,10 +372,17 @@ router.delete('/templates/:id/share/:userId', auth, async (req, res) => {
 // Get user's generated documents
 router.get('/documents', auth, async (req, res) => {
   try {
+    const cacheKey = `cache:documents:${req.user.id}`;
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     const documents = await GeneratedDocument.find({ userId: req.user.id })
       .sort({ createdAt: -1 })
       .limit(50);
     
+    await setCache(cacheKey, documents, 120); // 2-minute TTL
     res.json(documents);
   } catch (err) {
     console.error('Get documents error:', err);

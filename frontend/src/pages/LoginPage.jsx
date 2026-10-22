@@ -84,7 +84,7 @@ export default function LoginPage() {
           </h1>
 
           <p className="text-base leading-relaxed mb-10" style={{ color: "#8B9CB6", maxWidth: "420px" }}>
-            Generate, extract, compress and analyse documents with AI — all in one secure workspace.
+            Generate, extract, compress, and analyse documents with AI in one workspace.
           </p>
 
           {/* Feature pills */}
@@ -106,27 +106,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Bottom quote */}
-        <div
-          className="rounded-2xl p-5"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
-          <p className="text-sm italic mb-3" style={{ color: "#8B9CB6" }}>
-            "DocuGen cut our invoice processing time by 70%. The AI extraction is remarkably accurate."
-          </p>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: "linear-gradient(135deg, #3B82F6, #6366F1)", color: "white" }}
-            >
-              R
-            </div>
-            <div>
-              <div className="text-sm font-medium" style={{ color: "#CBD5E1" }}>Rohan Mehta</div>
-              <div className="text-xs" style={{ color: "#4B6080" }}>Operations Lead, FinServe</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ── Right panel — form ── */}
@@ -282,9 +261,6 @@ export default function LoginPage() {
             Create a free account →
           </button>
 
-          <p className="text-center text-xs mt-6" style={{ color: "#2D4060" }}>
-            Your documents are encrypted and stored securely.
-          </p>
         </div>
       </div>
     </div>

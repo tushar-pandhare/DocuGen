@@ -2,21 +2,23 @@
 
 ## Architecture
 - **Frontend** → Vercel (static React/Vite)
-- **Backend** → Railway / Render / Fly.io (Node.js + Express)
+- **Backend** → Render (Node.js + Express)
   - ⚠️ Vercel CANNOT host the backend (uses Puppeteer/PDFKit, requires persistent file system)
+- **Worker** → Not included in the free Render Blueprint; queued background jobs need a separately hosted worker.
 
 ---
 
 ## Backend Deployment (Render)
 
 1. Push this repository to GitHub and create a Render account at https://render.com.
-2. In Render, create a **Blueprint** from this repository. Render reads the root `render.yaml` and creates the backend web service and background worker.
-3. Add the required environment variables in the Render dashboard for both services. Keep all real values in the dashboard, never in Git:
-   - Backend: `MONGO_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `FRONTEND_URL`, `GEMINI_API_KEY`, and your Redis connection settings.
-   - Worker: `MONGO_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GEMINI_API_KEY`, and the same Redis connection settings.
-   - Configure `UPSTASH_REDIS_URL` (or `REDIS_URL`) for BullMQ. The backend and worker must use the same Redis instance.
-   - Configure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` on the backend if using the Upstash REST cache/rate-limit integration.
+2. In Render, create a **Blueprint** from this repository. Render reads the root `render.yaml` and creates the free backend web service.
+3. Add the required environment variables in the Render dashboard. Keep all real values in the dashboard, never in Git:
+   - `MONGO_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `FRONTEND_URL`, and `GEMINI_API_KEY`.
+   - Configure `UPSTASH_REDIS_URL` (or `REDIS_URL`) for BullMQ queue access.
+   - Configure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` if using the Upstash REST cache/rate-limit integration.
 4. After the backend deploys, note its Render URL, for example `https://your-backend.onrender.com`. The health endpoint is `/health`.
+
+The free Blueprint does not deploy a background worker. Features that enqueue OCR, PDF, compression, invoice, or AI jobs will not finish until you deploy `worker/` as a separate background worker on a platform/plan that supports it. Set its Redis connection to the same Redis instance as the backend.
 
 ---
 
@@ -56,7 +58,6 @@ VITE_API_URL=https://your-backend.onrender.com/api
 - [ ] Invoice download works
 - [ ] Google Drive connect flow works
 - [ ] Templates load correctly
-- [ ] Worker is running and queued jobs complete
 
 
 

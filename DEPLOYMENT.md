@@ -14,11 +14,10 @@
 2. In Render, create a **Blueprint** from this repository. Render reads the root `render.yaml` and creates the free backend web service.
 3. Add the required environment variables in the Render dashboard. Keep all real values in the dashboard, never in Git:
    - `MONGO_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `FRONTEND_URL`, and `GEMINI_API_KEY`.
-   - Configure `UPSTASH_REDIS_URL` (or `REDIS_URL`) for BullMQ queue access.
-   - Configure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` if using the Upstash REST cache/rate-limit integration.
+   - `REDIS_ENABLED=false` temporarily disables Upstash Redis, BullMQ queues, and Redis-backed cache/rate limiting. Rate limiting falls back to per-instance memory.
 4. After the backend deploys, note its Render URL, for example `https://your-backend.onrender.com`. The health endpoint is `/health`.
 
-The free Blueprint does not deploy a background worker. Features that enqueue OCR, PDF, compression, invoice, or AI jobs will not finish until you deploy `worker/` as a separate background worker on a platform/plan that supports it. Set its Redis connection to the same Redis instance as the backend.
+With `REDIS_ENABLED=false`, queue-backed OCR, PDF conversion, compression, invoice, AI, and summarisation requests return HTTP 503 while Redis is disabled. For local development, set this variable in `backend/.env` too; the worker reads it from there and will not start. When Redis is available again, set `REDIS_ENABLED=true` (or remove the variable), configure the backend and worker with the same Redis URL, and deploy the worker separately; the free Render Blueprint does not include a background worker.
 
 ---
 

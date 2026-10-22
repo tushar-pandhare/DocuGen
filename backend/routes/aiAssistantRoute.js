@@ -41,7 +41,9 @@ router.post("/upload", auth, upload.single("document"), async (req, res) => {
     });
   } catch (err) {
     console.error("AI Upload enqueue error:", err.message);
-    res.status(500).json({ message: "Failed to enqueue document processing." });
+    res.status(err.status || 500).json({
+      message: err.status === 503 ? err.message : "Failed to enqueue document processing.",
+    });
   }
 });
 
@@ -65,7 +67,9 @@ router.post("/ask", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("AI Ask enqueue error:", err.message);
-    res.status(500).json({ message: "Failed to enqueue question processing." });
+    res.status(err.status || 500).json({
+      message: err.status === 503 ? err.message : "Failed to enqueue question processing.",
+    });
   }
 });
 

@@ -39,7 +39,9 @@ router.post("/", auth, upload.single("file"), async (req, res) => {
     });
   } catch (err) {
     console.error("PdfToImage enqueue error:", err.message);
-    res.status(500).json({ message: "Failed to enqueue PDF-to-image job" });
+    res.status(err.status || 500).json({
+      message: err.status === 503 ? err.message : "Failed to enqueue PDF-to-image job",
+    });
   }
 });
 

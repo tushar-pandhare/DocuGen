@@ -11,6 +11,12 @@
 
 require("dotenv").config({ path: require("path").join(__dirname, "../backend/.env") });
 
+const { isRedisEnabled } = require("../backend/utils/redisEnabled");
+if (!isRedisEnabled()) {
+  console.log("Redis disabled by REDIS_ENABLED=false. Worker will not start.");
+  process.exit(0);
+}
+
 const { Worker } = require("bullmq");
 const path = require("path");
 

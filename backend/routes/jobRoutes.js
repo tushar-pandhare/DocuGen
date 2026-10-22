@@ -59,7 +59,9 @@ router.get("/:id/status", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Job status error:", err.message);
-    res.status(500).json({ error: "Failed to retrieve job status" });
+    res.status(err.status || 500).json({
+      error: err.status === 503 ? err.message : "Failed to retrieve job status",
+    });
   }
 });
 

@@ -6,6 +6,7 @@
 
 const { Queue } = require("bullmq");
 const { getRedisConnection } = require("../utils/bullmqRedis");
+const { isRedisEnabled, createRedisDisabledError } = require("../utils/redisEnabled");
 
 // We lazily initialise queues so the module is safe to import even when Redis
 // is not yet configured (e.g. during unit-test module loading).
@@ -16,6 +17,10 @@ const _queues = {};
  * @param {string} name  - Queue name, one of: "ocr", "compress", "pdfToImage", "invoice"
  */
 function getQueue(name) {
+  if (!isRedisEnabled()) {
+    throw createRedisDisabledError();
+  }
+
   if (!_queues[name]) {
     const connection = getRedisConnection();
     _queues[name] = new Queue(name, {

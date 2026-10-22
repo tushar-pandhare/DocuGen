@@ -49,7 +49,9 @@ router.post("/", auth, upload.array("files"), async (req, res) => {
     });
   } catch (err) {
     console.error("Compress enqueue error:", err.message);
-    res.status(500).json({ message: "Failed to enqueue compression job" });
+    res.status(err.status || 500).json({
+      message: err.status === 503 ? err.message : "Failed to enqueue compression job",
+    });
   }
 });
 

@@ -76,7 +76,9 @@ router.post("/run", auth, upload.single("file"), async (req, res) => {
     });
   } catch (err) {
     console.error("Pipeline run error:", err.message);
-    const status = err.message.startsWith("Invalid") || err.message.startsWith("Pipeline") ? 400 : 500;
+    const status =
+      err.status ||
+      (err.message.startsWith("Invalid") || err.message.startsWith("Pipeline") ? 400 : 500);
     return res.status(status).json({ message: err.message || "Failed to start pipeline" });
   }
 });

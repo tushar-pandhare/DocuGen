@@ -42,7 +42,9 @@ router.post("/extract-text", auth, upload.single("file"), async (req, res) => {
     });
   } catch (err) {
     console.error("OCR enqueue error:", err.message);
-    res.status(500).json({ message: "Failed to enqueue OCR job" });
+    res.status(err.status || 500).json({
+      message: err.status === 503 ? err.message : "Failed to enqueue OCR job",
+    });
   }
 });
 

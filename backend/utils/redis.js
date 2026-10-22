@@ -2,11 +2,17 @@
 // Centralized Upstash Redis client for REST caching and state management
 
 const { Redis } = require("@upstash/redis");
+const { isRedisEnabled } = require("./redisEnabled");
 
 let redisClient = null;
 let isConfigured = false;
 
 function initRedis() {
+  if (!isRedisEnabled()) {
+    console.log("⚠️ Redis disabled by REDIS_ENABLED=false. Using local rate limits and disabling cache.");
+    return;
+  }
+
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -33,7 +39,7 @@ initRedis();
  * Check whether Redis is connected and configured
  */
 function isRedisAvailable() {
-  return isConfigured && redisClient !== null;
+  return isRedisEnabled() && isConfigured && redisClient !== null;
 }
 
 /**
